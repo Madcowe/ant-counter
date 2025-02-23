@@ -1,0 +1,9 @@
+[package]
+name = "ant-counter"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+autonomi = "0.3.6"
+eyre = "0.6.12"
+tokio = "1.43.0"
