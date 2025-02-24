@@ -2,6 +2,7 @@ use autonomi::client::payment::PaymentOption;
 use autonomi::client::scratchpad::{Bytes, Scratchpad};
 use autonomi::{Client, Network, Wallet};
 use eyre::Result;
+use std::io;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -14,10 +15,12 @@ async fn scratchpad_example() -> Result<()> {
     let client = Client::init_local().await?;
     let wallet = get_funded_wallet().await?;
 
-    // create a Scratchpad with some data
+    // create keys
     let key = autonomi::SecretKey::random();
     let public_key = key.public_key();
-    let content = Bytes::from("what's the meaning of life the universe and everything?");
+
+    // create scratchpad
+    let content = Bytes::from("hello");
     let contet_type = 42;
 
     // estimate the cost of the scratchpad
@@ -41,34 +44,52 @@ async fn scratchpad_example() -> Result<()> {
     assert_eq!(got.decrypt_data(&key), Ok(content.clone()));
     assert_eq!(got.counter(), 0);
     assert!(got.verify_signature());
-    println!("scratchpad got 1");
+    println!(
+        "scratchpad version {:?}, value: {:?}",
+        got.counter(),
+        got.decrypt_data(&key)
+    );
 
     // check that the content is decrypted correctly
     let got_content = got.decrypt_data(&key)?;
     assert_eq!(got_content, content);
 
-    // try to update scratchpad
-    let content2 = Bytes::from("42");
-    client
-        .scratchpad_update(&key, contet_type, &content2)
-        .await?;
+    // loop asking user for value to store and then storing on scratch pad
+    loop {
+        println!("Enter value to be stored:");
 
-    //wait for the scratchpad to be replicated
-    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+        let mut content = String::new();
 
-    // check that the scrachpad is stored
-    let got = client.scratchpad_get(&addr).await?;
-    assert_eq!(*got.owner(), public_key);
-    assert_eq!(got.data_encoding(), contet_type);
-    assert_eq!(got.decrypt_data(&key), Ok(content2.clone()));
-    assert_eq!(got.counter(), 1);
-    assert!(got.verify_signature());
-    println!("scratchpad got 2");
+        io::stdin().read_line(&mut content)?;
+        if content == "quit\n" {
+            break;
+        }
 
-    // check that the content is decrypted correctly
-    let got_content2 = got.decrypt_data(&key)?;
-    assert_eq!(got_content2, content2);
+        // try to update scratchpad
+        let content = Bytes::from(content);
+        client
+            .scratchpad_update(&key, contet_type, &content)
+            .await?;
 
+        //wait for the scratchpad to be replicated
+        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+
+        // check that the scrachpad is stored
+        let got = client.scratchpad_get(&addr).await?;
+        assert_eq!(*got.owner(), public_key);
+        assert_eq!(got.data_encoding(), contet_type);
+        assert_eq!(got.decrypt_data(&key), Ok(content.clone()));
+        assert!(got.verify_signature());
+        println!(
+            "scratchpad version {:?}, value: {:?}",
+            got.counter(),
+            got.decrypt_data(&key)?
+        );
+
+        // check that the content is decrypted correctly
+        let got_content = got.decrypt_data(&key)?;
+        assert_eq!(got_content, content);
+    }
     Ok(())
 }
 

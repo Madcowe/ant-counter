@@ -1,4 +1,3 @@
 To do
-- Create scratchpad that can store and change values.
-- Make bisic interface to change values.
+- Create struct to hold the data.
 - Make it so scrathpad can be initiated then program closed and values amened by differnt instance/program.
