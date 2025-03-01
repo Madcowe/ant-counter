@@ -1,8 +1,11 @@
 use autonomi::client::payment::PaymentOption;
 use autonomi::client::scratchpad::{Bytes, Scratchpad};
 use autonomi::{Client, Network, Wallet};
+use counter::Counter;
 use eyre::Result;
 use std::io;
+
+mod counter;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -19,9 +22,16 @@ async fn scratchpad_example() -> Result<()> {
     let key = autonomi::SecretKey::random();
     let public_key = key.public_key();
 
-    // create scratchpad
-    let content = Bytes::from("hello");
-    let contet_type = 42;
+    // create counter
+    let mut counter = Counter::new();
+    counter.set_max(3);
+    println!("{:?}", counter);
+
+    // convert to bytes for scratchpad
+    let counter_serailzed = serde_json::to_string(&counter)?;
+    println!("{}", counter_serailzed);
+    let content = Bytes::from(counter_serailzed);
+    let contet_type = 99;
 
     // estimate the cost of the scratchpad
     let cost = client.scratchpad_cost(&public_key).await?;

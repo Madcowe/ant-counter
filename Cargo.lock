@@ -803,7 +803,10 @@ name = "ant-counter"
 version = "0.1.0"
 dependencies = [
  "autonomi",
+ "bincode",
  "eyre",
+ "serde",
+ "serde_json",
  "tokio",
 ]
 
