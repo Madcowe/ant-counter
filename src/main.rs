@@ -28,8 +28,9 @@ async fn scratchpad_example() -> Result<()> {
     println!("{:?}", counter);
 
     // convert to bytes for scratchpad
-    let counter_serailzed = serde_json::to_string(&counter)?;
-    println!("{}", counter_serailzed);
+    let counter_serailzed = bincode::serialize(&counter)?;
+    // let counter_serailzed = serde_json::to_string(&counter)?;
+    println!("{:?}", counter_serailzed);
     let content = Bytes::from(counter_serailzed);
     let contet_type = 99;
 

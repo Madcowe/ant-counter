@@ -1,4 +1,19 @@
 To do
 - Work out how to encode counter struct into Bytes to put in scratch pad
+- Modify iterace so use can add to counter or reset
 - Add to element function of counter so can now when times has expired
 - Make it so scrathpad can be initiated then program closed and values amened by differnt instance/program.
+
+Note scratch pad storage stoped working with errors like
+Caused by:
+    Record not stored by nodes, it could be invalid, else you should retry: NetworkAddress::RecordKey("8abffc3b0318cb3264cbc38b2753350f9fe7d6fea22ef11397d5f50b93762333" - bd5d42ffee71fa360197f9134a291596ea54dfe529c758c90a44b2c6a14e6349)
+When I git pulled on the automini workspace on 01/03/2025, reverting back to what I had previously at this commit
+commit 8a3dd16fc7c24e497756bbdb31fa374fab00043e (HEAD -> main, origin/main, origin/HEAD)
+Merge: 534f565fd f4fa21adc
+Author: Anselme <anselmega@gmail.com>
+Date:   Mon Feb 17 04:12:32 2025 +0000
+
+    Merge pull request #2752 from markwylde/ant-register-history
+    
+    feat: implement ant register history
+Which I am using for work on this for autmoni folder in projects...current version is in cloned_projects
