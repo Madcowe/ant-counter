@@ -1,6 +1,5 @@
 To do
-- Work out how to encode counter struct into Bytes to put in scratch pad
-- Modify iterace so use can add to counter or reset
+- Need to deserilze data returne from scratch pad from automin:Bytes so that cna change back to stuct?
 - Add to element function of counter so can now when times has expired
 - Make it so scrathpad can be initiated then program closed and values amened by differnt instance/program.
 

@@ -29,19 +29,17 @@ async fn scratchpad_example() -> Result<()> {
 
     // convert to bytes for scratchpad
     let counter_serailzed = bincode::serialize(&counter)?;
-    // let counter_serailzed = serde_json::to_string(&counter)?;
-    println!("{:?}", counter_serailzed);
     let content = Bytes::from(counter_serailzed);
-    let contet_type = 99;
+    let content_type = 99;
 
     // estimate the cost of the scratchpad
-    let cost = client.scratchpad_cost(&public_key).await?;
-    println!("scratchpad cost: {cost}");
+    // let cost = client.scratchpad_cost(&public_key).await?;
+    // println!("scratchpad cost: {cost}");
 
     // create the scratchpad
     let payment_option = PaymentOption::from(&wallet);
     let (cost, addr) = client
-        .scratchpad_create(&key, contet_type, &content, payment_option)
+        .scratchpad_create(&key, content_type, &content, payment_option)
         .await?;
     println!("scratchpad create cost: {cost}");
 
@@ -51,7 +49,7 @@ async fn scratchpad_example() -> Result<()> {
     // check that the scrachpad is stored
     let got = client.scratchpad_get(&addr).await?;
     assert_eq!(*got.owner(), public_key);
-    assert_eq!(got.data_encoding(), contet_type);
+    assert_eq!(got.data_encoding(), content_type);
     assert_eq!(got.decrypt_data(&key), Ok(content.clone()));
     assert_eq!(got.counter(), 0);
     assert!(got.verify_signature());
@@ -67,19 +65,26 @@ async fn scratchpad_example() -> Result<()> {
 
     // loop asking user for value to store and then storing on scratch pad
     loop {
-        println!("Enter value to be stored:");
+        println!("Enter i to increment counter, r to rest or q to quit:");
 
-        let mut content = String::new();
+        let mut input = String::new();
 
-        io::stdin().read_line(&mut content)?;
-        if content == "quit\n" {
-            break;
+        io::stdin().read_line(&mut input)?;
+        let input = input.trim();
+        match input {
+            "i" => counter.increment(),
+            "r" => counter.reset(),
+            "q" => break,
+            _ => println!("Unrecognised command"),
         }
-
+        println!("{:?}", counter);
         // try to update scratchpad
-        let content = Bytes::from(content);
+        // convert to bytes for scratchpad
+        let counter_serailzed = bincode::serialize(&counter)?;
+        let content = Bytes::from(counter_serailzed);
+        let content_type = 99;
         client
-            .scratchpad_update(&key, contet_type, &content)
+            .scratchpad_update(&key, content_type, &content)
             .await?;
 
         //wait for the scratchpad to be replicated
@@ -88,7 +93,7 @@ async fn scratchpad_example() -> Result<()> {
         // check that the scrachpad is stored
         let got = client.scratchpad_get(&addr).await?;
         assert_eq!(*got.owner(), public_key);
-        assert_eq!(got.data_encoding(), contet_type);
+        assert_eq!(got.data_encoding(), content_type);
         assert_eq!(got.decrypt_data(&key), Ok(content.clone()));
         assert!(got.verify_signature());
         println!(
