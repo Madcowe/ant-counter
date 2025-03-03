@@ -1,5 +1,6 @@
 use autonomi::client::payment::PaymentOption;
 use autonomi::client::scratchpad::{Bytes, Scratchpad};
+use autonomi::client::ConnectError;
 use autonomi::{Client, Network, Wallet};
 use counter::Counter;
 use eyre::Result;
@@ -53,10 +54,11 @@ async fn scratchpad_example() -> Result<()> {
     assert_eq!(got.decrypt_data(&key), Ok(content.clone()));
     assert_eq!(got.counter(), 0);
     assert!(got.verify_signature());
+    let decoded: Counter = bincode::deserialize(&got.decrypt_data(&key)?)?;
     println!(
         "scratchpad version {:?}, value: {:?}",
         got.counter(),
-        got.decrypt_data(&key)
+        decoded
     );
 
     // check that the content is decrypted correctly
@@ -96,10 +98,11 @@ async fn scratchpad_example() -> Result<()> {
         assert_eq!(got.data_encoding(), content_type);
         assert_eq!(got.decrypt_data(&key), Ok(content.clone()));
         assert!(got.verify_signature());
+        let decoded: Counter = bincode::deserialize(&got.decrypt_data(&key)?)?;
         println!(
             "scratchpad version {:?}, value: {:?}",
             got.counter(),
-            got.decrypt_data(&key)?
+            decoded
         );
 
         // check that the content is decrypted correctly
