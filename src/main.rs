@@ -1,10 +1,11 @@
 use autonomi::client::payment::PaymentOption;
 use autonomi::client::scratchpad::{Bytes, Scratchpad};
-use autonomi::client::ConnectError;
-use autonomi::{Client, Network, Wallet};
+use autonomi::{Client, Network, SecretKey, Wallet};
 use counter::Counter;
 use eyre::Result;
-use std::io;
+use std::fs::{self, File};
+use std::io::{self, Write};
+use std::path::Path;
 
 mod counter;
 
@@ -19,8 +20,17 @@ async fn scratchpad_example() -> Result<()> {
     let client = Client::init_local().await?;
     let wallet = get_funded_wallet().await?;
 
+    let path = Path::new("key");
+    let key = create_key(path)?;
+
+    // if file exists import key from file otherwise create it and save to file
+    // let key = match fs::read_to_string(path) {
+    //     Ok(key) => SecretKey::from_hex(&key),
+    //     Err(_) => create_key(path),
+    // };
+
     // create keys
-    let key = autonomi::SecretKey::random();
+    // let key = autonomi::SecretKey::random();
     let public_key = key.public_key();
 
     // create counter
@@ -37,7 +47,8 @@ async fn scratchpad_example() -> Result<()> {
     // let cost = client.scratchpad_cost(&public_key).await?;
     // println!("scratchpad cost: {cost}");
 
-    // create the scratchpad
+    // create the scratchpad if doesn't exist
+    // otherwise update it
     let payment_option = PaymentOption::from(&wallet);
     let (cost, addr) = client
         .scratchpad_create(&key, content_type, &content, payment_option)
@@ -55,6 +66,7 @@ async fn scratchpad_example() -> Result<()> {
     assert_eq!(got.counter(), 0);
     assert!(got.verify_signature());
     let decoded: Counter = bincode::deserialize(&got.decrypt_data(&key)?)?;
+    // println!("{} | {}", got.network_address(), got.xorname());
     println!(
         "scratchpad version {:?}, value: {:?}",
         got.counter(),
@@ -67,7 +79,7 @@ async fn scratchpad_example() -> Result<()> {
 
     // loop asking user for value to store and then storing on scratch pad
     loop {
-        println!("Enter i to increment counter, r to rest or q to quit:");
+        println!("Enter i to increment counter, r to reset or q to quit:");
 
         let mut input = String::new();
 
@@ -119,4 +131,16 @@ async fn get_funded_wallet() -> Result<Wallet> {
     println!("Wallet address: {}", wallet.address());
     println!("Wallet ballance: {}", wallet.balance_of_tokens().await?);
     Ok(wallet)
+}
+
+fn create_key(path: &Path) -> Result<autonomi::SecretKey> {
+    let key = autonomi::SecretKey::random();
+    let key_hex = key.to_hex();
+    println!("{}", key_hex);
+    let mut file = match File::create_new(&path) {
+        Ok(file) => file,
+        Err(e) => return Err(e.into()),
+    };
+    file.write_all(key_hex.as_bytes())?;
+    Ok(key)
 }
