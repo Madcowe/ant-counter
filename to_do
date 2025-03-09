@@ -2,6 +2,16 @@ To do
 - Make it so scrathpad can be initiated then program closed and values amened by differnt instance/program.
     - Have update so secret key stored in file but need to adjust so that if file exists it uses that key.
 - Add time element function of counter so can now reset when times has expired
+- Nice ratatui front end
+- Make ready for WASM
+- Make html/javacript front end
+
+- Check if upto date automin workspace (as per note) now works if if need to find soloution
+
+- Modify to run on live network
+- Deploy to live network
+
+- look into how to secure key
 
 Note scratch pad storage stoped working with errors like
 Caused by:

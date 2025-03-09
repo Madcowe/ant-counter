@@ -1,9 +1,10 @@
 use autonomi::client::payment::PaymentOption;
-use autonomi::client::scratchpad::{Bytes, Scratchpad};
+use autonomi::client::scratchpad::Bytes;
 use autonomi::{Client, Network, SecretKey, Wallet};
 use counter::Counter;
 use eyre::Result;
-use std::fs::{self, File};
+use std::fs;
+use std::fs::File;
 use std::io::{self, Write};
 use std::path::Path;
 
@@ -21,17 +22,28 @@ async fn scratchpad_example() -> Result<()> {
     let wallet = get_funded_wallet().await?;
 
     let path = Path::new("key");
-    let key = create_key(path)?;
+    // let key = create_key(path)?;
 
     // if file exists import key from file otherwise create it and save to file
-    // let key = match fs::read_to_string(path) {
-    //     Ok(key) => SecretKey::from_hex(&key),
-    //     Err(_) => create_key(path),
-    // };
+    let key = match fs::read_to_string(path) {
+        Ok(key) => SecretKey::from_hex(&key)?,
+        Err(_) => create_key(path)?,
+    };
+    println!("{}", key.to_hex());
+    // let hex_key = fs::read_to_string(path);
 
-    // create keys
-    // let key = autonomi::SecretKey::random();
+    // let key;
+
+    // if let Ok(hex_key) = hex_key {
+    //     key = SecretKey::from_hex(&hex_key)?;
+    // } else {
+    //     key = create_key(path)?;
+    // }
+
     let public_key = key.public_key();
+
+    // check if scratch_pad with counter in already exists if so get current values
+    // else create new scratch_patch to stored counter
 
     // create counter
     let mut counter = Counter::new();
@@ -136,11 +148,8 @@ async fn get_funded_wallet() -> Result<Wallet> {
 fn create_key(path: &Path) -> Result<autonomi::SecretKey> {
     let key = autonomi::SecretKey::random();
     let key_hex = key.to_hex();
-    println!("{}", key_hex);
-    let mut file = match File::create_new(&path) {
-        Ok(file) => file,
-        Err(e) => return Err(e.into()),
-    };
+    println!("New key: {}", key_hex);
+    let mut file = File::create_new(&path)?;
     file.write_all(key_hex.as_bytes())?;
     Ok(key)
 }
