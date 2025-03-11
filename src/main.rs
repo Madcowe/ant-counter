@@ -36,10 +36,9 @@ async fn scratchpad_example() -> Result<()> {
     // check if scratch_pad with counter in already exists if so get current values
     // else create new scratch_patch to stored counter
 
-    // create counter
+    // create new counter
     let mut counter = Counter::new();
     counter.set_max(3);
-    println!("{:?}", counter);
 
     // convert to bytes for scratchpad
     let counter_serailzed = bincode::serialize(&counter)?;
@@ -50,19 +49,28 @@ async fn scratchpad_example() -> Result<()> {
     // let cost = client.scratchpad_cost(&public_key).await?;
     // println!("scratchpad cost: {cost}");
 
-    // create the scratchpad if doesn't exist
-    // otherwise update it
+    let (cost, addr): (autonomi::AttoTokens, autonomi::ScratchpadAddress);
+
+    // load value from exiting scratch pad into counter
+    // or create the scratchpad if doesn't exist
     let existing_scratchpad = client.scratchpad_get_from_public_key(&public_key);
     match existing_scratchpad.await {
-        Ok(scratchpad) => println!("{:?}", scratchpad),
-        Err(_) => println!("No existing scratchpad"),
+        Ok(scratchpad) => {
+            addr = *scratchpad.address();
+            let got = client.scratchpad_get(&addr).await?;
+            counter = bincode::deserialize(&got.decrypt_data(&key)?)?;
+        }
+        // println!("{:?}", scratchpad),
+        Err(_) => {
+            println!("No existing scratchpad");
+            let payment_option = PaymentOption::from(&wallet);
+            (cost, addr) = client
+                .scratchpad_create(&key, content_type, &content, payment_option)
+                .await?;
+            println!("scratchpad create cost: {cost} addr {addr}");
+        }
     };
-
-    let payment_option = PaymentOption::from(&wallet);
-    let (cost, addr) = client
-        .scratchpad_create(&key, content_type, &content, payment_option)
-        .await?;
-    println!("scratchpad create cost: {cost} addr {addr}");
+    println!("{:?}", counter);
 
     //wait for the scratchpad to be replicated
     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
@@ -71,8 +79,8 @@ async fn scratchpad_example() -> Result<()> {
     let got = client.scratchpad_get(&addr).await?;
     assert_eq!(*got.owner(), public_key);
     assert_eq!(got.data_encoding(), content_type);
-    assert_eq!(got.decrypt_data(&key), Ok(content.clone()));
-    assert_eq!(got.counter(), 0);
+    // assert_eq!(got.decrypt_data(&key), Ok(content.clone()));
+    // assert_eq!(got.counter(), 0);
     assert!(got.verify_signature());
     let decoded: Counter = bincode::deserialize(&got.decrypt_data(&key)?)?;
     // println!("{} | {}", got.network_address(), got.xorname());
@@ -81,10 +89,6 @@ async fn scratchpad_example() -> Result<()> {
         got.counter(),
         decoded
     );
-
-    // check that the content is decrypted correctly
-    let got_content = got.decrypt_data(&key)?;
-    assert_eq!(got_content, content);
 
     // loop asking user for value to store and then storing on scratch pad
     loop {
