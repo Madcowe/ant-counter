@@ -1,6 +1,7 @@
 To do
 - Make it so scrathpad can be initiated then program closed and values amened by differnt instance/program.
     - Have update so secret key stored in file but need to adjust so that if file exists it uses that key.
+    - Maybe I need to keep the scrathpad address rather then the secret key???
 - Add time element function of counter so can now reset when times has expired
 - Nice ratatui front end
 - Make ready for WASM

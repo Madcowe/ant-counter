@@ -30,15 +30,6 @@ async fn scratchpad_example() -> Result<()> {
         Err(_) => create_key(path)?,
     };
     println!("{}", key.to_hex());
-    // let hex_key = fs::read_to_string(path);
-
-    // let key;
-
-    // if let Ok(hex_key) = hex_key {
-    //     key = SecretKey::from_hex(&hex_key)?;
-    // } else {
-    //     key = create_key(path)?;
-    // }
 
     let public_key = key.public_key();
 
@@ -61,11 +52,17 @@ async fn scratchpad_example() -> Result<()> {
 
     // create the scratchpad if doesn't exist
     // otherwise update it
+    let existing_scratchpad = client.scratchpad_get_from_public_key(&public_key);
+    match existing_scratchpad.await {
+        Ok(scratchpad) => println!("{:?}", scratchpad),
+        Err(_) => println!("No existing scratchpad"),
+    };
+
     let payment_option = PaymentOption::from(&wallet);
     let (cost, addr) = client
         .scratchpad_create(&key, content_type, &content, payment_option)
         .await?;
-    println!("scratchpad create cost: {cost}");
+    println!("scratchpad create cost: {cost} addr {addr}");
 
     //wait for the scratchpad to be replicated
     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
@@ -101,7 +98,10 @@ async fn scratchpad_example() -> Result<()> {
             "i" => counter.increment(),
             "r" => counter.reset(),
             "q" => break,
-            _ => println!("Unrecognised command"),
+            _ => {
+                println!("Unrecognised command");
+                continue;
+            }
         }
         println!("{:?}", counter);
         // try to update scratchpad
