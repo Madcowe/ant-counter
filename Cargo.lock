@@ -766,9 +766,9 @@ dependencies = [
 
 [[package]]
 name = "ant-bootstrap"
-version = "0.1.5"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94d4df30ab09f8026829de7469ce14b3d40e5f7c2013f4ba4c5cbd74a6209cc0"
+checksum = "c8e657207232c1dc36a4d3f2a4f550e0305cca9b2c264f3aafb15051dc031bcb"
 dependencies = [
  "ant-logging",
  "ant-protocol",
@@ -789,9 +789,9 @@ dependencies = [
 
 [[package]]
 name = "ant-build-info"
-version = "0.1.24"
+version = "0.1.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab6dd4b2dc4df9c1b17b73dc5f80da7fc8c5f52f018df272b0894795955059c1"
+checksum = "e7eabcdd54b85f4a6ef5180eeb103be8209fffad39081642663418e9937e810c"
 dependencies = [
  "chrono",
  "tracing",
@@ -812,9 +812,9 @@ dependencies = [
 
 [[package]]
 name = "ant-evm"
-version = "0.1.9"
+version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e60f9830c4b3b6ea6a1f3703266067bc22fb0bd17e611b54d6ae429f969efbc0"
+checksum = "594832b3c46a8074d55b6d143d482b954ba6b3a384a5ba8a34ce467b69fe4e30"
 dependencies = [
  "custom_debug",
  "evmlib",
@@ -835,9 +835,9 @@ dependencies = [
 
 [[package]]
 name = "ant-logging"
-version = "0.2.46"
+version = "0.2.48"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a278e3c0341740fd879d8f719a43ed058513c7e3260b1c30b6880e5ff478ee5"
+checksum = "3d6d0b1da19bc866959890e3e7529950b09efc6e9eeb408c326af238833436dc"
 dependencies = [
  "chrono",
  "dirs-next",
@@ -853,9 +853,9 @@ dependencies = [
 
 [[package]]
 name = "ant-networking"
-version = "0.3.5"
+version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71108e4652722388ebe59c7306832ebcef23dea127228f3975bf7f7e6258f110"
+checksum = "a54fcc34da01029a51537555f093c8026b582cb00dffbf2a4a47f2092c80b843"
 dependencies = [
  "aes-gcm-siv",
  "ant-bootstrap",
@@ -888,9 +888,9 @@ dependencies = [
 
 [[package]]
 name = "ant-protocol"
-version = "1.0.0"
+version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "792f1f48999a3c89bd50f11e8dc496619fc19e1b710a37add6cf9134a5e264b6"
+checksum = "97d59ed357075e338e871aa8d0d6f47503086a9fe616fad19e191c710fbbc480"
 dependencies = [
  "ant-build-info",
  "ant-evm",
@@ -1245,9 +1245,9 @@ checksum = "ace50bade8e6234aa140d9a2f552bbee1db4d353f69b8217bc503490fc1a9f26"
 
 [[package]]
 name = "autonomi"
-version = "0.3.6"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af69fe5f588b94aa6eda75637bcb0457fff1a2e53b55615f521b81ef14c7eb4a"
+checksum = "4d35c7ded4e3799090a085827e3d38cfcd1805fc7f55da83b46d865be18f2d69"
 dependencies = [
  "ant-bootstrap",
  "ant-evm",
@@ -2259,9 +2259,9 @@ dependencies = [
 
 [[package]]
 name = "evmlib"
-version = "0.1.9"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54ed57e3cdbfadb8b794af0bbb65cb31a72c98959cd52ad1ba7c59ae1d838988"
+checksum = "7e2d49e242eed3c3549a14925cc5be67e37ee4f90b7e0617bf06cbf870a5a6aa"
 dependencies = [
  "alloy",
  "dirs-next",

@@ -1,7 +1,7 @@
-To do
-- Make it so scrathpad can be initiated then program closed and values amened by differnt instance/program.
-- consder what to do if two apps running at same time, currently if one increment then the other it will have
+// To do
+- consider what to do if two apps running at same time, currently if one increment then the other it will have
     +2 versions but only +1 in the count.
+- Clean up and reorggnise so repearet code in functions chaff removed etc.
 - Add time element function of counter so can now reset when times has expired
 - Nice ratatui front end
 - Make ready for WASM
@@ -14,6 +14,8 @@ To do
 
 - look into how to secure key
 
+
+!!!! Note below was due to not updatding the autonomi dependency to the same version as the cloned repo !!! doh!!!!
 Note scratch pad storage stoped working with errors like
 Caused by:
     Record not stored by nodes, it could be invalid, else you should retry: NetworkAddress::RecordKey("8abffc3b0318cb3264cbc38b2753350f9fe7d6fea22ef11397d5f50b93762333" - bd5d42ffee71fa360197f9134a291596ea54dfe529c758c90a44b2c6a14e6349)

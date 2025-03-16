@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-autonomi = "0.3.6"
+autonomi = "0.4.0"
 bincode = "1.3.3"
 eyre = "0.6.12"
 serde = { version = "1.0.218", featyres = ["derive"] }
