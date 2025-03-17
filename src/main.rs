@@ -62,112 +62,54 @@ async fn scratchpad_counter() -> Result<()> {
     println!("{:?}", counter);
     println!("{:?}", scratchpad);
 
-    // match scratcpad {
-    //     Ok(scratchpad) => scratchpad,
-    //     Err(_) =>
-    // }
+    // loop asking user for value to store and then storing on scratch pad
+    loop {
+        println!("Enter i to increment counter, r to reset or q to quit:");
 
-    // // create new counter
-    // let mut counter = Counter::new();
-    // counter.set_max(3);
+        let mut input = String::new();
 
-    // // convert to bytes for scratchpad
-    // let counter_serailzed = bincode::serialize(&counter)?;
-    // let content = Bytes::from(counter_serailzed);
-    // let content_type = 99;
-
-    // // estimate the cost of the scratchpad
-    // // let cost = client.scratchpad_cost(&public_key).await?;
-    // // println!("scratchpad cost: {cost}");
-
-    // let (cost, addr): (autonomi::AttoTokens, autonomi::ScratchpadAddress);
-
-    // // load value from exiting scratch pad into counter
-    // // or create the scratchpad if doesn't exist
-    // let existing_scratchpad = client.scratchpad_get_from_public_key(&public_key);
-    // match existing_scratchpad.await {
-    //     Ok(scratchpad) => {
-    //         addr = *scratchpad.address();
-    //         let got = client.scratchpad_get(&addr).await?;
-    //         counter = bincode::deserialize(&got.decrypt_data(&key)?)?;
-    //     }
-    //     // println!("{:?}", scratchpad),
-    //     Err(_) => {
-    //         println!("No existing scratchpad");
-    //         let payment_option = PaymentOption::from(&wallet);
-    //         (cost, addr) = client
-    //             .scratchpad_create(&key, content_type, &content, payment_option)
-    //             .await?;
-    //         println!("scratchpad create cost: {cost} addr {addr}");
-    //     }
-    // };
-    // println!("{:?}", counter);
-
-    // //wait for the scratchpad to be replicated
-    // tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-
-    // // check that the scrachpad is stored
-    // let got = client.scratchpad_get(&addr).await?;
-    // assert_eq!(*got.owner(), public_key);
-    // assert_eq!(got.data_encoding(), content_type);
-    // // assert_eq!(got.decrypt_data(&key), Ok(content.clone()));
-    // // assert_eq!(got.counter(), 0);
-    // assert!(got.verify_signature());
-    // let decoded: Counter = bincode::deserialize(&got.decrypt_data(&key)?)?;
-    // // println!("{} | {}", got.network_address(), got.xorname());
-    // println!(
-    //     "scratchpad version {:?}, value: {:?}",
-    //     got.counter(),
-    //     decoded
-    // );
-
-    // // loop asking user for value to store and then storing on scratch pad
-    // loop {
-    //     println!("Enter i to increment counter, r to reset or q to quit:");
-
-    //     let mut input = String::new();
-
-    //     io::stdin().read_line(&mut input)?;
-    //     let input = input.trim();
-    //     match input {
-    //         "i" => counter.increment(),
-    //         "r" => counter.reset(),
-    //         "q" => break,
-    //         _ => {
-    //             println!("Unrecognised command");
-    //             continue;
-    //         }
-    //     }
-    //     println!("{:?}", counter);
-    //     // try to update scratchpad
-    //     // convert to bytes for scratchpad
-    //     let counter_serailzed = bincode::serialize(&counter)?;
-    //     let content = Bytes::from(counter_serailzed);
-    //     let content_type = 99;
-    //     client
-    //         .scratchpad_update(&key, content_type, &content)
-    //         .await?;
-
-    //     //wait for the scratchpad to be replicated
-    //     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-
-    //     // check that the scrachpad is stored
-    //     let got = client.scratchpad_get(&addr).await?;
-    //     assert_eq!(*got.owner(), public_key);
-    //     assert_eq!(got.data_encoding(), content_type);
-    //     assert_eq!(got.decrypt_data(&key), Ok(content.clone()));
-    //     assert!(got.verify_signature());
-    //     let decoded: Counter = bincode::deserialize(&got.decrypt_data(&key)?)?;
-    //     println!(
-    //         "scratchpad version {:?}, value: {:?}",
-    //         got.counter(),
-    //         decoded
-    //     );
-
-    //     // check that the content is decrypted correctly
-    //     let got_content = got.decrypt_data(&key)?;
-    //     assert_eq!(got_content, content);
-    // }
+        io::stdin().read_line(&mut input)?;
+        let input = input.trim();
+        match input {
+            "i" => {
+                // download data again incase it has been changed by another app
+                // counter = bincode::deserialize(&scratchpad.decrypt_data(&key)?)?;
+                counter = get_scratchpad_counter(&client, &scratchpad, &key).await?;
+                counter.increment();
+            }
+            "r" => {
+                // download data again incase it has been changed by another app
+                counter = get_scratchpad_counter(&client, &scratchpad, &key).await?;
+                counter.reset();
+            }
+            "q" => break,
+            _ => {
+                println!("Unrecognised command");
+                continue;
+            }
+        }
+        println!("{:?}", counter);
+        println!("Syncing to ant network...");
+        let counter_serailzed = bincode::serialize(&counter)?;
+        let content = Bytes::from(counter_serailzed);
+        let content_type = 99;
+        client
+            .scratchpad_update(&key, content_type, &content)
+            .await?;
+        while counter != get_scratchpad_counter(&client, &scratchpad, &key).await? {
+            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+            println!("Syncing to ant network...");
+        }
+        // tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+        println!("Synced");
+        let got = client.scratchpad_get(&scratchpad.address()).await?;
+        let decoded: Counter = bincode::deserialize(&got.decrypt_data(&key)?)?;
+        println!(
+            "scratchpad version {:?}, value: {:?}",
+            got.counter(),
+            decoded
+        );
+    }
     Ok(())
 }
 
@@ -187,4 +129,18 @@ fn create_key(path: &Path) -> Result<autonomi::SecretKey> {
     let mut file = File::create_new(&path)?;
     file.write_all(key_hex.as_bytes())?;
     Ok(key)
+}
+
+async fn get_scratchpad_counter(
+    client: &Client,
+    scratchpad: &Scratchpad,
+    key: &autonomi::SecretKey,
+) -> Result<Counter> {
+    let counter: Counter = bincode::deserialize(
+        &client
+            .scratchpad_get(&scratchpad.address())
+            .await?
+            .decrypt_data(&key)?,
+    )?;
+    Ok(counter)
 }

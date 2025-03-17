@@ -1,7 +1,4 @@
 // To do
-- consider what to do if two apps running at same time, currently if one increment then the other it will have
-    +2 versions but only +1 in the count.
-- Clean up and reorggnise so repearet code in functions chaff removed etc.
 - Add time element function of counter so can now reset when times has expired
 - Nice ratatui front end
 - Make ready for WASM
