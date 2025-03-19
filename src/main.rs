@@ -21,7 +21,6 @@ async fn scratchpad_counter() -> Result<()> {
     let client = Client::init_local().await?;
     let wallet = get_funded_wallet().await?;
     let path = Path::new("key");
-    // let key = create_key(path)?;
 
     // if file exists import key from file otherwise create it and save to file
     let key = match fs::read_to_string(path) {
@@ -44,7 +43,7 @@ async fn scratchpad_counter() -> Result<()> {
             scratchpad
         }
         Err(_) => {
-            counter = Counter::new();
+            counter = Counter::new()?;
             let counter_seralized = bincode::serialize(&counter)?;
             let content = Bytes::from(counter_seralized);
             let payment_option = PaymentOption::from(wallet);
@@ -61,6 +60,8 @@ async fn scratchpad_counter() -> Result<()> {
 
     println!("{:?}", counter);
     println!("{:?}", scratchpad);
+    counter.reset_if_next_period()?;
+    println!("{:?}", counter);
 
     // loop asking user for value to store and then storing on scratch pad
     loop {
@@ -70,6 +71,7 @@ async fn scratchpad_counter() -> Result<()> {
 
         io::stdin().read_line(&mut input)?;
         let input = input.trim();
+        counter.reset_if_next_period()?;
         match input {
             "i" => {
                 // download data again incase it has been changed by another app
