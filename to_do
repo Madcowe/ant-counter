@@ -1,5 +1,4 @@
 // To do
-- Add time element function of counter so can now reset when times has expired
 - Nice ratatui front end
 - Make ready for WASM
 - Make html/javacript front end
@@ -10,7 +9,7 @@
 - Deploy to live network
 
 - look into how to secure key
-
+- consder making type that contains counter and scratchpad and methods for uploading/downloading etc all in one place
 
 !!!! Note below was due to not updatding the autonomi dependency to the same version as the cloned repo !!! doh!!!!
 Note scratch pad storage stoped working with errors like

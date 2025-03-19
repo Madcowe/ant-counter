@@ -1,6 +1,6 @@
 use autonomi::client::payment::PaymentOption;
 use autonomi::client::scratchpad::Bytes;
-use autonomi::{Client, Network, Scratchpad, SecretKey, Wallet};
+use autonomi::{Client, ClientConfig, Network, Scratchpad, SecretKey, Wallet};
 use counter::Counter;
 use eyre::Result;
 use std::fs;
@@ -37,7 +37,7 @@ async fn scratchpad_counter() -> Result<()> {
     // populate local scrach pad variable with it
 
     let mut counter;
-    let scratchpad = match client.scratchpad_get_from_public_key(&public_key).await {
+    let mut scratchpad = match client.scratchpad_get_from_public_key(&public_key).await {
         Ok(scratchpad) => {
             counter = bincode::deserialize(&scratchpad.decrypt_data(&key)?)?;
             scratchpad
@@ -60,22 +60,36 @@ async fn scratchpad_counter() -> Result<()> {
 
     println!("{:?}", counter);
     println!("{:?}", scratchpad);
-    counter.reset_if_next_period()?;
+    match counter.reset_if_next_period()? {
+        true => {
+            scratchpad = update_scratchpad_counter(&client, &scratchpad, &counter, &key).await?
+        }
+        _ => (),
+    }
     println!("{:?}", counter);
 
     // loop asking user for value to store and then storing on scratch pad
     loop {
+        // get input from user
         println!("Enter i to increment counter, r to reset or q to quit:");
-
         let mut input = String::new();
-
         io::stdin().read_line(&mut input)?;
         let input = input.trim();
-        counter.reset_if_next_period()?;
+
+        // sync counter with scratchpad and reset if needed
+        counter = get_scratchpad_counter(&client, &scratchpad, &key).await?;
+        match counter.reset_if_next_period()? {
+            true => {
+                // if counter is reset upload
+                scratchpad = update_scratchpad_counter(&client, &scratchpad, &counter, &key).await?
+            }
+            _ => (),
+        }
+        // println!("{:?}", counter);
+
         match input {
             "i" => {
                 // download data again incase it has been changed by another app
-                // counter = bincode::deserialize(&scratchpad.decrypt_data(&key)?)?;
                 counter = get_scratchpad_counter(&client, &scratchpad, &key).await?;
                 counter.increment();
             }
@@ -90,26 +104,14 @@ async fn scratchpad_counter() -> Result<()> {
                 continue;
             }
         }
-        println!("{:?}", counter);
-        println!("Syncing to ant network...");
-        let counter_serailzed = bincode::serialize(&counter)?;
-        let content = Bytes::from(counter_serailzed);
-        let content_type = 99;
-        client
-            .scratchpad_update(&key, content_type, &content)
-            .await?;
-        while counter != get_scratchpad_counter(&client, &scratchpad, &key).await? {
-            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-            println!("Syncing to ant network...");
-        }
-        // tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-        println!("Synced");
-        let got = client.scratchpad_get(&scratchpad.address()).await?;
-        let decoded: Counter = bincode::deserialize(&got.decrypt_data(&key)?)?;
+        // upload to antnet
+        scratchpad = update_scratchpad_counter(&client, &scratchpad, &counter, &key).await?;
+        // downlaod and print results
+        counter = bincode::deserialize(&scratchpad.decrypt_data(&key)?)?;
         println!(
             "scratchpad version {:?}, value: {:?}",
-            got.counter(),
-            decoded
+            scratchpad.counter(),
+            counter
         );
     }
     Ok(())
@@ -145,4 +147,26 @@ async fn get_scratchpad_counter(
             .decrypt_data(&key)?,
     )?;
     Ok(counter)
+}
+
+async fn update_scratchpad_counter(
+    client: &Client,
+    scratchpad: &Scratchpad,
+    counter: &Counter,
+    key: &autonomi::SecretKey,
+) -> Result<Scratchpad> {
+    println!("{:?}", counter);
+    println!("Syncing to ant network...");
+    let counter_serailzed = bincode::serialize(&counter)?;
+    let content = Bytes::from(counter_serailzed);
+    let content_type = 99;
+    client
+        .scratchpad_update(&key, content_type, &content)
+        .await?;
+    while *counter != get_scratchpad_counter(&client, &scratchpad, &key).await? {
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+        println!("Syncing to ant network...");
+    }
+    println!("Synced");
+    Ok(client.scratchpad_get(scratchpad.address()).await?)
 }

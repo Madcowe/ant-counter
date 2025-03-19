@@ -33,14 +33,16 @@ impl Counter {
 
     // checks if time is past rest_zoned_data_time and if so resets the counter
     // and updates reset_zoned_date_time to next period start
-    pub fn reset_if_next_period(&mut self) -> Result<(), jiff::Error> {
+    pub fn reset_if_next_period(&mut self) -> Result<bool, jiff::Error> {
+        let mut reset = false;
         let now = Zoned::now();
         if now > self.reset_zoned_date_time {
             self.reset();
             self.reset_zoned_date_time = get_a_minute_from_now()?;
+            reset = true;
             println!("Reseting as in new period")
         }
-        Ok(())
+        Ok(reset)
     }
 
     pub fn increment(&mut self) {
