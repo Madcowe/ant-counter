@@ -1,5 +1,13 @@
+use autonomi::client::payment::PaymentOption;
+use autonomi::client::scratchpad::Bytes;
+use autonomi::{Client, Scratchpad, SecretKey, Wallet};
+use eyre::Result;
 use jiff::{ToSpan, Zoned};
 use serde::{Deserialize, Serialize};
+use std::fs::File;
+use std::io::Write;
+use std::path::Path;
+use std::task::Wake;
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub struct Counter {
@@ -47,6 +55,78 @@ impl Counter {
 
     pub fn increment(&mut self) {
         self.count += 1;
+    }
+}
+
+pub struct CreationItems {
+    wallet: Wallet,
+}
+
+pub struct ConnectedScratchpad {
+    client: Client,
+    scratchpad: Scratchpad,
+    key: SecretKey,
+}
+
+pub enum AppMode {
+    Initiating,
+    Creating(),
+    Counting(CountingMode),
+}
+
+pub enum CountingMode {
+    Local,
+    Connected(ConnectedScratchpad),
+}
+
+pub struct CounterApp {
+    pub app_mode: AppMode,
+    pub counter: Counter,
+}
+
+pub enum CreationError<'a> {
+    FailedToCreateFile(&'a Path),
+    FailedToWriteToFile(&'a Path),
+    FailedToIntiateClient(autonomi::client::ConnectError),
+    FailedToCreatCounter(jiff::Error),
+    FailedToSerailzeCounter(bincode::Error),
+    FailedToCreateScratchPad(autonomi::client::data_types::scratchpad::ScratchpadError),
+}
+
+impl CounterApp {
+    pub fn new() -> Result<CounterApp, jiff::Error> {
+        Ok(CounterApp {
+            app_mode: AppMode::Initiating,
+            counter: Counter::new()?,
+        })
+    }
+
+    pub async fn create(&mut self, path: &Path, wallet: Wallet) -> Result<()> {
+        let key = autonomi::SecretKey::random();
+        let key_hex = key.to_hex();
+        println!("New key: {}", key_hex);
+        let mut file = File::create_new(&path)?;
+        file.write_all(key_hex.as_bytes())?;
+        // initiate a client (connect)
+        let client = Client::init_local().await?;
+        self.counter = Counter::new()?;
+        let counter_seralized = bincode::serialize(&self.counter)?;
+        let content = Bytes::from(counter_seralized);
+        let payment_option = PaymentOption::from(wallet);
+        let content_type = 99;
+        let (cost, addr) = client
+            .scratchpad_create(&key, content_type, &content, payment_option)
+            .await?;
+        println!("Scratchpad created, cost: {cost} addr {addr}");
+        tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+        let scratchpad = client.scratchpad_get(&addr).await?;
+        let connected_scratchpad = ConnectedScratchpad {
+            client: client,
+            scratchpad: scratchpad,
+            key: key,
+        };
+        self.app_mode = AppMode::Counting(CountingMode::Connected(connected_scratchpad));
+        Ok(())
     }
 }
 
