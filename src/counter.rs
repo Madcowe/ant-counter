@@ -84,6 +84,8 @@ pub struct CounterApp {
     pub counter: Counter,
 }
 
+impl CounterApp {
+
 pub enum Error<'a> {
     FailedToCreateFile(&'a Path),
     FailedToWriteToFile(&'a Path),
@@ -99,6 +101,15 @@ impl CounterApp {
             app_mode: AppMode::Initiating,
             counter: Counter::new()?,
         })
+    }
+
+    fn connected_scratchpad(&mut self) -> Option<&ConnectedScratchpad> {
+        if let AppMode::Counting(counting_mode) = &self.app_mode {
+            if let CountingMode::Connected(connected_scatchpad) = counting_mode {
+                return Some(connected_scatchpad);
+            }
+        }
+        None
     }
 
     pub async fn create(&mut self, path: &Path, wallet: Wallet) -> Result<()> {
@@ -150,22 +161,40 @@ impl CounterApp {
         }
     }
 
-    pub async fn download(mut self) -> Result<()> {
-        match self.app_mode {
-            AppMode::Counting(counting_mode) => match counting_mode {
-                CountingMode::Connected(mut connected_scratchpad) => {
-                    connected_scratchpad.scratchpad = connected_scratchpad
-                        .client
-                        .scratchpad_get(connected_scratchpad.scratchpad.address())
-                        .await?;
-                    Ok(())
-                }
-                _ => Ok(()),
-            },
-            _ => Ok(()),
+    pub async fn download(&mut self) -> Result<()> {
+        if let Some(counter_scratchpad) = self.connected_scratchpad() {
+                connected_scratchpad
+                    .client
+                    .scratchpad_get(connected_scratchpad.scratchpad.address())
+                    .await?;
         }
+        Ok(())
     }
 }
+        // if let AppMode::Counting(counting_mode) = self.app_mode {
+        //     if let CountingMode::Connected(connected_scratchpad) = counting_mode {
+        //         connected_scratchpad
+        //             .client
+        //             .scratchpad_get(connected_scratchpad.scratchpad.address())
+        //             .await?;
+        //     }
+        // }
+        // Ok(())
+        // match self.app_mode {
+        //     AppMode::Counting(counting_mode) => match counting_mode {
+        //         CountingMode::Connected(mut connected_scratchpad) => {
+        //             connected_scratchpad.scratchpad = connected_scratchpad
+        //                 .client
+        //                 .scratchpad_get(connected_scratchpad.scratchpad.address())
+        //                 .await?;
+        //             Ok(())
+        //         }
+        //         _ => Ok(()),
+        //     },
+        //     _ => Ok(()),
+        // }
+//     }
+// }
 
 fn get_start_of_next_week() -> Result<Zoned, jiff::Error> {
     let now = Zoned::now().start_of_day()?;
