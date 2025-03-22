@@ -1,5 +1,6 @@
 use autonomi::client::payment::PaymentOption;
 use autonomi::client::scratchpad::Bytes;
+use autonomi::client::CONNECT_TIMEOUT_SECS;
 use autonomi::{Client, Scratchpad, SecretKey, Wallet};
 use eyre::Result;
 use jiff::{ToSpan, Zoned};
@@ -7,7 +8,6 @@ use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
-use std::task::Wake;
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub struct Counter {
@@ -84,7 +84,7 @@ pub struct CounterApp {
     pub counter: Counter,
 }
 
-pub enum CreationError<'a> {
+pub enum Error<'a> {
     FailedToCreateFile(&'a Path),
     FailedToWriteToFile(&'a Path),
     FailedToIntiateClient(autonomi::client::ConnectError),
@@ -102,14 +102,16 @@ impl CounterApp {
     }
 
     pub async fn create(&mut self, path: &Path, wallet: Wallet) -> Result<()> {
+        // create new key and save to file
         let key = autonomi::SecretKey::random();
         let key_hex = key.to_hex();
         println!("New key: {}", key_hex);
         let mut file = File::create_new(&path)?;
         file.write_all(key_hex.as_bytes())?;
-        // initiate a client (connect)
+        // initiate a client (connect) and create local counter
         let client = Client::init_local().await?;
         self.counter = Counter::new()?;
+        // searlize counter and create scratchpad with it
         let counter_seralized = bincode::serialize(&self.counter)?;
         let content = Bytes::from(counter_seralized);
         let payment_option = PaymentOption::from(wallet);
@@ -118,6 +120,7 @@ impl CounterApp {
             .scratchpad_create(&key, content_type, &content, payment_option)
             .await?;
         println!("Scratchpad created, cost: {cost} addr {addr}");
+        // wait for scratchpad to be replicated
         tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
         let scratchpad = client.scratchpad_get(&addr).await?;
         let connected_scratchpad = ConnectedScratchpad {
@@ -127,6 +130,40 @@ impl CounterApp {
         };
         self.app_mode = AppMode::Counting(CountingMode::Connected(connected_scratchpad));
         Ok(())
+    }
+
+    pub async fn connect(&mut self, key: SecretKey) -> Result<()> {
+        let public_key = key.public_key();
+        let client_option = Client::init_local().await;
+        match client_option {
+            Err(connect_error) => Err(connect_error.into()),
+            Ok(client) => {
+                let scratchpad = client.scratchpad_get_from_public_key(&public_key).await?;
+                let connected_scratchpad = ConnectedScratchpad {
+                    client: client,
+                    scratchpad: scratchpad,
+                    key: key,
+                };
+                self.app_mode = AppMode::Counting(CountingMode::Connected(connected_scratchpad));
+                Ok(())
+            }
+        }
+    }
+
+    pub async fn download(mut self) -> Result<()> {
+        match self.app_mode {
+            AppMode::Counting(counting_mode) => match counting_mode {
+                CountingMode::Connected(mut connected_scratchpad) => {
+                    connected_scratchpad.scratchpad = connected_scratchpad
+                        .client
+                        .scratchpad_get(connected_scratchpad.scratchpad.address())
+                        .await?;
+                    Ok(())
+                }
+                _ => Ok(()),
+            },
+            _ => Ok(()),
+        }
     }
 }
 

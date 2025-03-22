@@ -3,6 +3,7 @@
     - Map out application states in enum
     - Needs to split creation from normal use as shouldn't haappen often outside of testing
 - Deal with ant network being not accessiable
+- Sort out custom error handling
 - Nice ratatui front end
 - Make ready for WASM
 - Make html/javacript front end
