@@ -1,6 +1,5 @@
 use autonomi::client::payment::PaymentOption;
 use autonomi::client::scratchpad::Bytes;
-use autonomi::client::CONNECT_TIMEOUT_SECS;
 use autonomi::{Client, Scratchpad, SecretKey, Wallet};
 use eyre::Result;
 use jiff::{ToSpan, Zoned};
@@ -9,7 +8,7 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
-#[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
 pub struct Counter {
     pub count: usize,
     pub max: usize,
@@ -58,10 +57,6 @@ impl Counter {
     }
 }
 
-pub struct CreationItems {
-    wallet: Wallet,
-}
-
 pub struct ConnectedScratchpad {
     client: Client,
     scratchpad: Scratchpad,
@@ -82,9 +77,8 @@ pub enum CountingMode {
 pub struct CounterApp {
     pub app_mode: AppMode,
     pub counter: Counter,
+    pub content_type: u64,
 }
-
-impl CounterApp {
 
 pub enum Error<'a> {
     FailedToCreateFile(&'a Path),
@@ -100,6 +94,7 @@ impl CounterApp {
         Ok(CounterApp {
             app_mode: AppMode::Initiating,
             counter: Counter::new()?,
+            content_type: 99,
         })
     }
 
@@ -126,9 +121,8 @@ impl CounterApp {
         let counter_seralized = bincode::serialize(&self.counter)?;
         let content = Bytes::from(counter_seralized);
         let payment_option = PaymentOption::from(wallet);
-        let content_type = 99;
         let (cost, addr) = client
-            .scratchpad_create(&key, content_type, &content, payment_option)
+            .scratchpad_create(&key, self.content_type, &content, payment_option)
             .await?;
         println!("Scratchpad created, cost: {cost} addr {addr}");
         // wait for scratchpad to be replicated
@@ -162,37 +156,73 @@ impl CounterApp {
     }
 
     pub async fn download(&mut self) -> Result<()> {
+        if let Some(connected_scratchpad) = self.connected_scratchpad() {
+            connected_scratchpad
+                .client
+                .scratchpad_get(connected_scratchpad.scratchpad.address())
+                .await?;
+        }
+        Ok(())
+    }
+
+    pub async fn upload(&mut self) -> Result<()> {
+        print!("{:?}", &self.counter);
+        let counter_serailzed = bincode::serialize(&self.counter)?;
+        let content = Bytes::from(counter_serailzed);
+        let content_type = self.content_type;
         if let Some(counter_scratchpad) = self.connected_scratchpad() {
-                connected_scratchpad
-                    .client
-                    .scratchpad_get(connected_scratchpad.scratchpad.address())
-                    .await?;
+            print!("Syncing to antnet...");
+            counter_scratchpad
+                .client
+                .scratchpad_update(&counter_scratchpad.key, content_type, &content)
+                .await?
         }
         Ok(())
     }
 }
-        // if let AppMode::Counting(counting_mode) = self.app_mode {
-        //     if let CountingMode::Connected(connected_scratchpad) = counting_mode {
-        //         connected_scratchpad
-        //             .client
-        //             .scratchpad_get(connected_scratchpad.scratchpad.address())
-        //             .await?;
-        //     }
-        // }
-        // Ok(())
-        // match self.app_mode {
-        //     AppMode::Counting(counting_mode) => match counting_mode {
-        //         CountingMode::Connected(mut connected_scratchpad) => {
-        //             connected_scratchpad.scratchpad = connected_scratchpad
-        //                 .client
-        //                 .scratchpad_get(connected_scratchpad.scratchpad.address())
-        //                 .await?;
-        //             Ok(())
-        //         }
-        //         _ => Ok(()),
-        //     },
-        //     _ => Ok(()),
-        // }
+// async fn update_scratchpad_counter(
+//     client: &Client,
+//     scratchpad: &Scratchpad,
+//     counter: &Counter,
+//     key: &autonomi::SecretKey,
+// ) -> Result<Scratchpad> {
+//     println!("{:?}", counter);
+//     println!("Syncing to ant network...");
+//     let counter_serailzed = bincode::serialize(&counter)?;
+//     let content = Bytes::from(counter_serailzed);
+//     let content_type = 99;
+//     client
+//         .scratchpad_update(&key, content_type, &content)
+//         .await?;
+//     while *counter != get_scratchpad_counter(&client, &scratchpad, &key).await? {
+//         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+//         println!("Syncing to ant network...");
+//     }
+//     println!("Synced");
+//     Ok(client.scratchpad_get(scratchpad.address()).await?)
+// }
+// if let AppMode::Counting(counting_mode) = self.app_mode {
+//     if let CountingMode::Connected(connected_scratchpad) = counting_mode {
+//         connected_scratchpad
+//             .client
+//             .scratchpad_get(connected_scratchpad.scratchpad.address())
+//             .await?;
+//     }
+// }
+// Ok(())
+// match self.app_mode {
+//     AppMode::Counting(counting_mode) => match counting_mode {
+//         CountingMode::Connected(mut connected_scratchpad) => {
+//             connected_scratchpad.scratchpad = connected_scratchpad
+//                 .client
+//                 .scratchpad_get(connected_scratchpad.scratchpad.address())
+//                 .await?;
+//             Ok(())
+//         }
+//         _ => Ok(()),
+//     },
+//     _ => Ok(()),
+// }
 //     }
 // }
 
