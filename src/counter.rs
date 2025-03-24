@@ -1,3 +1,4 @@
+use autonomi::client::data_types::scratchpad::ScratchpadError;
 use autonomi::client::payment::PaymentOption;
 use autonomi::client::scratchpad::Bytes;
 use autonomi::{Client, Scratchpad, SecretKey, Wallet};
@@ -80,14 +81,16 @@ pub struct CounterApp {
     pub content_type: u64,
 }
 
-pub enum Error<'a> {
-    FailedToCreateFile(&'a Path),
-    FailedToWriteToFile(&'a Path),
-    FailedToIntiateClient(autonomi::client::ConnectError),
-    FailedToCreatCounter(jiff::Error),
-    FailedToSerailzeCounter(bincode::Error),
-    FailedToCreateScratchPad(autonomi::client::data_types::scratchpad::ScratchpadError),
-}
+// #[derive(Debug, thiserror::Error)]
+// pub enum Error<'a> {
+//     FailedToCreateFile(&'a Path),
+//     FailedToWriteToFile(&'a Path),
+//     FailedToIntiateClient(autonomi::client::ConnectError),
+//     FailedToCreateCounter(jiff::Error),
+//     FailedToSerailzeCounter(bincode::Error),
+//     FailedToCreateScratchPad(autonomi::client::data_types::scratchpad::ScratchpadError),
+//     FailedToGetNetworkCounter,
+// }
 
 impl CounterApp {
     pub fn new() -> Result<CounterApp, jiff::Error> {
@@ -155,9 +158,36 @@ impl CounterApp {
         }
     }
 
+    // this interpets any error as inditive of not being connected hence false returned iseteaf of result
+    pub async fn is_connected(&mut self) -> bool {
+        let mut connected = false;
+        if let Some(connected_scratchpad) = self.connected_scratchpad() {
+            connected = connected_scratchpad
+                .client
+                .scratchpad_check_existance(&connected_scratchpad.scratchpad.address())
+                .await
+                .unwrap_or(false);
+        }
+        connected
+    }
+
+    pub async fn get_network_counter(&mut self) -> Result<Counter> {
+        if let Some(connected_scratchpad) = self.connected_scratchpad() {
+            let counter: Counter = bincode::deserialize(
+                &connected_scratchpad
+                    .client
+                    .scratchpad_get(&connected_scratchpad.scratchpad.address())
+                    .await?
+                    .decrypt_data(&connected_scratchpad.key)?,
+            )?;
+            return Ok(counter);
+        }
+        Err(ScratchpadError::Missing)? // replace with local error
+    }
+
     pub async fn download(&mut self) -> Result<()> {
         if let Some(connected_scratchpad) = self.connected_scratchpad() {
-            connected_scratchpad
+            connected_scratchpad.scratchpad = connected_scratchpad
                 .client
                 .scratchpad_get(connected_scratchpad.scratchpad.address())
                 .await?;
@@ -166,6 +196,7 @@ impl CounterApp {
     }
 
     pub async fn upload(&mut self) -> Result<()> {
+        let counter = self.counter.clone();
         print!("{:?}", &self.counter);
         let counter_serailzed = bincode::serialize(&self.counter)?;
         let content = Bytes::from(counter_serailzed);
@@ -175,9 +206,15 @@ impl CounterApp {
             counter_scratchpad
                 .client
                 .scratchpad_update(&counter_scratchpad.key, content_type, &content)
-                .await?
+                .await?;
+            while counter != self.get_network_counter().await? {
+                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                println!("Syncing to ant network...");
+            }
+            println!("Synced");
+            return Ok(());
         }
-        Ok(())
+        Err(ScratchpadError::Missing)? // replace with local error
     }
 }
 // async fn update_scratchpad_counter(
