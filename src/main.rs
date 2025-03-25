@@ -29,13 +29,14 @@ async fn run() -> Result<()> {
         let input = input.trim();
 
         match input {
-            "u" => {
-                if path.try_exists().unwrap_or(false) {
-                } else {
-                    println!("Key file is missing at path: {path:?}");
-                    println!("Try creating a new one");
-                }
-            }
+            //         "u" => {
+            //             if path.try_exists().unwrap_or(false) {
+            //                 counter_app.connected_scratchpad
+            //                 counter_app.connect();
+            //             } else {
+            //                 println!("Key file is missing at path: {path:?}");
+            //             }
+            //         }
             "c" => {
                 let wallet = get_funded_wallet().await?;
                 counter_app.create(&path, &wallet).await?;

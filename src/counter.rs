@@ -58,27 +58,19 @@ impl Counter {
     }
 }
 
-pub struct ConnectedScratchpad {
-    client: Client,
-    scratchpad: Scratchpad,
-    key: SecretKey,
-}
-
-pub enum AppMode {
+pub enum CounterState {
     Initiating,
-    Creating(),
-    Counting(CountingMode),
-}
-
-pub enum CountingMode {
-    Local,
-    Connected,
+    WithKey(SecretKey),
+    Connected {
+        client: Client,
+        scratchpad: Scratchpad,
+        key: SecretKey,
+    },
 }
 
 pub struct CounterApp {
-    pub app_mode: AppMode,
+    pub counter_state: CounterState,
     pub counter: Counter,
-    pub connected_scratchpad: Option<ConnectedScratchpad>,
     pub content_type: u64,
 }
 
@@ -96,9 +88,8 @@ pub struct CounterApp {
 impl CounterApp {
     pub fn new() -> Result<CounterApp, jiff::Error> {
         Ok(CounterApp {
-            app_mode: AppMode::Initiating,
+            counter_state: CounterState::Initiating,
             counter: Counter::new()?,
-            connected_scratchpad: None,
             content_type: 99,
         })
     }
@@ -124,105 +115,105 @@ impl CounterApp {
         // wait for scratchpad to be replicated
         tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
         let scratchpad = client.scratchpad_get(&addr).await?;
-        self.connected_scratchpad = Some(ConnectedScratchpad {
+        self.counter_state = CounterState::Connected {
             client,
             scratchpad,
             key,
-        });
-        self.app_mode = AppMode::Counting(CountingMode::Connected);
+        };
         Ok(())
-    }
-
-    pub fn set_key(&mut self, hex_key: &str) -> Result<()> {
-        Ok(())
-    }
-
-    // try and conneect to existing scratchpad
-    pub async fn connect(&mut self) -> Result<()> {
-        // match self.app_mode {
-        //     AppMode::Counting()
-        let key = self
-            .connected_scratchpad
-            .as_ref()
-            .ok_or(ScratchpadError::Missing)?
-            .key
-            .clone();
-        let public_key = key.public_key();
-        let client_option = Client::init_local().await;
-        match client_option {
-            Err(connect_error) => Err(connect_error.into()),
-            Ok(client) => {
-                let scratchpad = client.scratchpad_get_from_public_key(&public_key).await?;
-                self.connected_scratchpad = Some(ConnectedScratchpad {
-                    client,
-                    scratchpad,
-                    key,
-                });
-                self.app_mode = AppMode::Counting(CountingMode::Connected);
-                Ok(())
-            }
-        }
-    }
-
-    // this interpets any error as inditive of not being connected hence false returned iseteaf of result
-    pub async fn is_connected(&self) -> bool {
-        let mut connected = false;
-        if let Some(connected_scratchpad) = &self.connected_scratchpad {
-            connected = connected_scratchpad
-                .client
-                .scratchpad_check_existance(&connected_scratchpad.scratchpad.address())
-                .await
-                .unwrap_or(false)
-        }
-        connected
-    }
-
-    pub async fn get_network_counter(&self) -> Result<Counter> {
-        if let Some(connected_scratchpad) = &self.connected_scratchpad {
-            let counter: Counter = bincode::deserialize(
-                &connected_scratchpad
-                    .client
-                    .scratchpad_get(&connected_scratchpad.scratchpad.address())
-                    .await?
-                    .decrypt_data(&connected_scratchpad.key)?,
-            )?;
-            return Ok(counter);
-        }
-        Err(ScratchpadError::Missing)? // replace with local error
-    }
-
-    pub async fn download(&mut self) -> Result<()> {
-        if let Some(mut connected_scratchpad) = self.connected_scratchpad.as_mut() {
-            connected_scratchpad.scratchpad = connected_scratchpad
-                .client
-                .scratchpad_get(connected_scratchpad.scratchpad.address())
-                .await?;
-        }
-        Ok(())
-    }
-
-    pub async fn upload(&mut self) -> Result<()> {
-        let counter = self.counter.clone();
-        print!("{:?}", &self.counter);
-        let counter_serailzed = bincode::serialize(&self.counter)?;
-        let content = Bytes::from(counter_serailzed);
-        let content_type = self.content_type;
-        if let Some(counter_scratchpad) = &self.connected_scratchpad {
-            print!("Syncing to antnet...");
-            counter_scratchpad
-                .client
-                .scratchpad_update(&counter_scratchpad.key, content_type, &content)
-                .await?;
-            while counter != self.get_network_counter().await? {
-                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-                println!("Syncing to ant network...");
-            }
-            println!("Synced");
-            return Ok(());
-        }
-        Err(ScratchpadError::Missing)? // replace with local error
     }
 }
+
+//     pub fn set_key(&mut self, hex_key: &str) -> Result<()> {
+//         Ok(())
+//     }
+
+//     // try and conneect to existing scratchpad
+//     pub async fn connect(&mut self) -> Result<()> {
+//         // match self.app_mode {
+//         //     AppMode::Counting()
+//         let key = self
+//             .connected_scratchpad
+//             .as_ref()
+//             .ok_or(ScratchpadError::Missing)?
+//             .key
+//             .clone();
+//         let public_key = key.public_key();
+//         let client_option = Client::init_local().await;
+//         match client_option {
+//             Err(connect_error) => Err(connect_error.into()),
+//             Ok(client) => {
+//                 let scratchpad = client.scratchpad_get_from_public_key(&public_key).await?;
+//                 self.connected_scratchpad = Some(ConnectedScratchpad {
+//                     client,
+//                     scratchpad,
+//                     key,
+//                 });
+//                 self.app_mode = AppMode::Counting(CountingMode::Connected);
+//                 Ok(())
+//             }
+//         }
+//     }
+
+//     // this interpets any error as inditive of not being connected hence false returned iseteaf of result
+//     pub async fn is_connected(&self) -> bool {
+//         let mut connected = false;
+//         if let Some(connected_scratchpad) = &self.connected_scratchpad {
+//             connected = connected_scratchpad
+//                 .client
+//                 .scratchpad_check_existance(&connected_scratchpad.scratchpad.address())
+//                 .await
+//                 .unwrap_or(false)
+//         }
+//         connected
+//     }
+
+//     pub async fn get_network_counter(&self) -> Result<Counter> {
+//         if let Some(connected_scratchpad) = &self.connected_scratchpad {
+//             let counter: Counter = bincode::deserialize(
+//                 &connected_scratchpad
+//                     .client
+//                     .scratchpad_get(&connected_scratchpad.scratchpad.address())
+//                     .await?
+//                     .decrypt_data(&connected_scratchpad.key)?,
+//             )?;
+//             return Ok(counter);
+//         }
+//         Err(ScratchpadError::Missing)? // replace with local error
+//     }
+
+//     pub async fn download(&mut self) -> Result<()> {
+//         if let Some(mut connected_scratchpad) = self.connected_scratchpad.as_mut() {
+//             connected_scratchpad.scratchpad = connected_scratchpad
+//                 .client
+//                 .scratchpad_get(connected_scratchpad.scratchpad.address())
+//                 .await?;
+//         }
+//         Ok(())
+//     }
+
+//     pub async fn upload(&mut self) -> Result<()> {
+//         let counter = self.counter.clone();
+//         print!("{:?}", &self.counter);
+//         let counter_serailzed = bincode::serialize(&self.counter)?;
+//         let content = Bytes::from(counter_serailzed);
+//         let content_type = self.content_type;
+//         if let Some(counter_scratchpad) = &self.connected_scratchpad {
+//             print!("Syncing to antnet...");
+//             counter_scratchpad
+//                 .client
+//                 .scratchpad_update(&counter_scratchpad.key, content_type, &content)
+//                 .await?;
+//             while counter != self.get_network_counter().await? {
+//                 tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+//                 println!("Syncing to ant network...");
+//             }
+//             println!("Synced");
+//             return Ok(());
+//         }
+//         Err(ScratchpadError::Missing)? // replace with local error
+//     }
+// }
 
 fn get_start_of_next_week() -> Result<Zoned, jiff::Error> {
     let now = Zoned::now().start_of_day()?;
