@@ -5,7 +5,6 @@ use autonomi::{Client, Scratchpad, SecretKey, Wallet};
 use eyre::Result;
 use jiff::{ToSpan, Zoned};
 use serde::{Deserialize, Serialize};
-use std::borrow::BorrowMut;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
@@ -104,21 +103,12 @@ impl CounterApp {
         })
     }
 
-    // fn connected_scratchpad(&mut self) -> Option<&ConnectedScratchpad> {
-    //     if let AppMode::Counting(counting_mode) = &self.app_mode {
-    //         if let CountingMode::Connected(connected_scatchpad) = counting_mode {
-    //             return Some(connected_scatchpad);
-    //         }
-    //     }
-    //     None
-    // }
-
-    pub async fn create(&mut self, path: &Path, wallet: Wallet) -> Result<()> {
+    pub async fn create(&mut self, path: &Path, wallet: &Wallet) -> Result<()> {
         // create new key and save to file
         let key = autonomi::SecretKey::random();
         let key_hex = key.to_hex();
         println!("New key: {}", key_hex);
-        let mut file = File::create_new(&path)?;
+        let mut file = File::create(&path)?;
         file.write_all(key_hex.as_bytes())?;
         // initiate a client (connect) and create local counter
         let client = Client::init_local().await?;
@@ -143,7 +133,20 @@ impl CounterApp {
         Ok(())
     }
 
-    pub async fn connect(&mut self, key: SecretKey) -> Result<()> {
+    pub fn set_key(&mut self, hex_key: &str) -> Result<()> {
+        Ok(())
+    }
+
+    // try and conneect to existing scratchpad
+    pub async fn connect(&mut self) -> Result<()> {
+        // match self.app_mode {
+        //     AppMode::Counting()
+        let key = self
+            .connected_scratchpad
+            .as_ref()
+            .ok_or(ScratchpadError::Missing)?
+            .key
+            .clone();
         let public_key = key.public_key();
         let client_option = Client::init_local().await;
         match client_option {
@@ -162,7 +165,7 @@ impl CounterApp {
     }
 
     // this interpets any error as inditive of not being connected hence false returned iseteaf of result
-    pub async fn is_connected(&mut self) -> bool {
+    pub async fn is_connected(&self) -> bool {
         let mut connected = false;
         if let Some(connected_scratchpad) = &self.connected_scratchpad {
             connected = connected_scratchpad
@@ -174,7 +177,7 @@ impl CounterApp {
         connected
     }
 
-    pub async fn get_network_counter(&mut self) -> Result<Counter> {
+    pub async fn get_network_counter(&self) -> Result<Counter> {
         if let Some(connected_scratchpad) = &self.connected_scratchpad {
             let counter: Counter = bincode::deserialize(
                 &connected_scratchpad
@@ -220,51 +223,6 @@ impl CounterApp {
         Err(ScratchpadError::Missing)? // replace with local error
     }
 }
-// async fn update_scratchpad_counter(
-//     client: &Client,
-//     scratchpad: &Scratchpad,
-//     counter: &Counter,
-//     key: &autonomi::SecretKey,
-// ) -> Result<Scratchpad> {
-//     println!("{:?}", counter);
-//     println!("Syncing to ant network...");
-//     let counter_serailzed = bincode::serialize(&counter)?;
-//     let content = Bytes::from(counter_serailzed);
-//     let content_type = 99;
-//     client
-//         .scratchpad_update(&key, content_type, &content)
-//         .await?;
-//     while *counter != get_scratchpad_counter(&client, &scratchpad, &key).await? {
-//         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-//         println!("Syncing to ant network...");
-//     }
-//     println!("Synced");
-//     Ok(client.scratchpad_get(scratchpad.address()).await?)
-// }
-// if let AppMode::Counting(counting_mode) = self.app_mode {
-//     if let CountingMode::Connected(connected_scratchpad) = counting_mode {
-//         connected_scratchpad
-//             .client
-//             .scratchpad_get(connected_scratchpad.scratchpad.address())
-//             .await?;
-//     }
-// }
-// Ok(())
-// match self.app_mode {
-//     AppMode::Counting(counting_mode) => match counting_mode {
-//         CountingMode::Connected(mut connected_scratchpad) => {
-//             connected_scratchpad.scratchpad = connected_scratchpad
-//                 .client
-//                 .scratchpad_get(connected_scratchpad.scratchpad.address())
-//                 .await?;
-//             Ok(())
-//         }
-//         _ => Ok(()),
-//     },
-//     _ => Ok(()),
-// }
-//     }
-// }
 
 fn get_start_of_next_week() -> Result<Zoned, jiff::Error> {
     let now = Zoned::now().start_of_day()?;
