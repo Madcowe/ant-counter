@@ -22,6 +22,7 @@ async fn run() -> Result<()> {
     // create app
     let mut counter_app = CounterApp::new()?;
     // get input from user
+    counter_app.print_counter_state();
     loop {
         println!("Enter (u) to use existing counter, (c) to create a new one or (q) to quit:");
         let mut input = String::new();
@@ -29,14 +30,14 @@ async fn run() -> Result<()> {
         let input = input.trim();
 
         match input {
-            //         "u" => {
-            //             if path.try_exists().unwrap_or(false) {
-            //                 counter_app.connected_scratchpad
-            //                 counter_app.connect();
-            //             } else {
-            //                 println!("Key file is missing at path: {path:?}");
-            //             }
-            //         }
+            "u" => {
+                if let Ok(hex_key) = fs::read_to_string(path) {
+                    counter_app.set_key_from_hex(&hex_key)?;
+                    counter_app.connect().await?;
+                } else {
+                    println!("Failed to load key file at path: {path:?}");
+                }
+            }
             "c" => {
                 let wallet = get_funded_wallet().await?;
                 counter_app.create(&path, &wallet).await?;
@@ -47,6 +48,7 @@ async fn run() -> Result<()> {
                 continue;
             }
         }
+        counter_app.print_counter_state();
     }
     Ok(())
 }
