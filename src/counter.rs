@@ -1,5 +1,6 @@
 use autonomi::client::payment::PaymentOption;
 use autonomi::client::scratchpad::Bytes;
+use autonomi::client::scratchpad::ScratchpadError;
 use autonomi::{Client, Scratchpad, SecretKey, Wallet};
 use eyre::Result;
 use jiff::{ToSpan, Zoned};
@@ -168,6 +169,52 @@ impl CounterApp {
         Ok(())
     }
 
+    pub async fn get_network_counter(&self) -> Result<Counter> {
+        let CounterState::Connected {
+            client,
+            scratchpad,
+            key,
+        } = &self.counter_state
+        else {
+            println!("Can't get network counter");
+            return Err(ScratchpadError::Missing.into()); // replace with local error
+        };
+        let counter = bincode::deserialize(
+            &client
+                .scratchpad_get(&scratchpad.address())
+                .await?
+                .decrypt_data(&key)?,
+        )?;
+        Ok(counter)
+    }
+
+    pub async fn upload(&mut self) -> Result<()> {
+        let counter = self.counter.clone();
+        print!("{:?}", &self.counter);
+        let counter_serailzed = bincode::serialize(&self.counter)?;
+        let content = Bytes::from(counter_serailzed);
+        let content_type = self.content_type;
+        let CounterState::Connected {
+            client,
+            scratchpad,
+            key,
+        } = &self.counter_state
+        else {
+            println!("Not connected");
+            return Ok(());
+        };
+        println!("Syncing to antnet...");
+        client
+            .scratchpad_update(&key, self.content_type, &content)
+            .await?;
+        while counter != self.get_network_counter().await? {
+            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+            println!("Syncing to ant network...");
+        }
+        println!("Synced");
+        Ok(())
+    }
+
     // this interpets any error as inditive of not being connected hence false returned iseteaf of result
     pub async fn is_connected(&self) -> bool {
         let mut connected = false;
@@ -197,20 +244,6 @@ impl CounterApp {
     //     connected
     // }
 
-    //     pub async fn get_network_counter(&self) -> Result<Counter> {
-    //         if let Some(connected_scratchpad) = &self.connected_scratchpad {
-    //             let counter: Counter = bincode::deserialize(
-    //                 &connected_scratchpad
-    //                     .client
-    //                     .scratchpad_get(&connected_scratchpad.scratchpad.address())
-    //                     .await?
-    //                     .decrypt_data(&connected_scratchpad.key)?,
-    //             )?;
-    //             return Ok(counter);
-    //         }
-    //         Err(ScratchpadError::Missing)? // replace with local error
-    //     }
-
     //     pub async fn download(&mut self) -> Result<()> {
     //         if let Some(mut connected_scratchpad) = self.connected_scratchpad.as_mut() {
     //             connected_scratchpad.scratchpad = connected_scratchpad
@@ -219,28 +252,6 @@ impl CounterApp {
     //                 .await?;
     //         }
     //         Ok(())
-    //     }
-
-    //     pub async fn upload(&mut self) -> Result<()> {
-    //         let counter = self.counter.clone();
-    //         print!("{:?}", &self.counter);
-    //         let counter_serailzed = bincode::serialize(&self.counter)?;
-    //         let content = Bytes::from(counter_serailzed);
-    //         let content_type = self.content_type;
-    //         if let Some(counter_scratchpad) = &self.connected_scratchpad {
-    //             print!("Syncing to antnet...");
-    //             counter_scratchpad
-    //                 .client
-    //                 .scratchpad_update(&counter_scratchpad.key, content_type, &content)
-    //                 .await?;
-    //             while counter != self.get_network_counter().await? {
-    //                 tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-    //                 println!("Syncing to ant network...");
-    //             }
-    //             println!("Synced");
-    //             return Ok(());
-    //         }
-    //         Err(ScratchpadError::Missing)? // replace with local error
     //     }
 }
 

@@ -47,27 +47,25 @@ async fn run() -> Result<()> {
     }
     println!("{:?}", counter_app.counter);
     match counter_app.counter_state {
-        CounterState::Connected { scratchpad, .. } => println!("{:?}", scratchpad),
+        CounterState::Connected { ref scratchpad, .. } => println!("{:?}", scratchpad),
         _ => (),
     }
-    // println!(
-    //     "{:?}",
-    //     let CounterState::Connected {
-    //         client: _,
-    //         scratchpad: scratchpad,
-    //         key: _
-    //     } = counter_app.counter_state
-    // );
+    match counter_app.counter.reset_if_next_period()? {
+        true => counter_app.upload().await?,
+        _ => (),
+    }
+    println!("{:?}", counter_app.counter);
     Ok(())
 }
 
-// match counter.reset_if_next_period()? {
-//     true => {
-//         scratchpad = update_scratchpad_counter(&client, &scratchpad, &counter, &key).await?
-//     }
-//     _ => (),
-// }
-// println!("{:?}", counter);
+async fn get_funded_wallet() -> Result<Wallet> {
+    let private_key = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+    let network = Network::new(true)?;
+    let wallet = Wallet::new_from_private_key(network, private_key)?;
+    println!("Wallet address: {}", wallet.address());
+    println!("Wallet ballance: {}", wallet.balance_of_tokens().await?);
+    Ok(wallet)
+}
 
 // // loop asking user for value to store and then storing on scratch pad
 // loop {
@@ -115,15 +113,6 @@ async fn run() -> Result<()> {
 //         counter
 //     );
 // }
-
-async fn get_funded_wallet() -> Result<Wallet> {
-    let private_key = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
-    let network = Network::new(true)?;
-    let wallet = Wallet::new_from_private_key(network, private_key)?;
-    println!("Wallet address: {}", wallet.address());
-    println!("Wallet ballance: {}", wallet.balance_of_tokens().await?);
-    Ok(wallet)
-}
 
 // fn create_key(path: &Path) -> Result<autonomi::SecretKey> {
 //     let key = autonomi::SecretKey::random();
