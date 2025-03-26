@@ -1,11 +1,7 @@
-use autonomi::client::payment::PaymentOption;
-use autonomi::client::scratchpad::Bytes;
-use autonomi::self_encryption::Error;
 use autonomi::{Client, ClientConfig, Network, Scratchpad, SecretKey, Wallet};
-use counter::{Counter, CounterApp};
+use counter::{Counter, CounterApp, CounterState};
 use eyre::Result;
 use std::fs;
-use std::fs::File;
 use std::io::{self, Write};
 use std::path::Path;
 
@@ -23,12 +19,11 @@ async fn run() -> Result<()> {
     let mut counter_app = CounterApp::new()?;
     // get input from user
     counter_app.print_counter_state();
-    loop {
+    while let CounterState::Initiating = counter_app.counter_state {
         println!("Enter (u) to use existing counter, (c) to create a new one or (q) to quit:");
         let mut input = String::new();
         io::stdin().read_line(&mut input)?;
         let input = input.trim();
-
         match input {
             "u" => {
                 if let Ok(hex_key) = fs::read_to_string(path) {
@@ -50,61 +45,22 @@ async fn run() -> Result<()> {
         }
         counter_app.print_counter_state();
     }
+    println!("{:?}", counter_app.counter);
+    match counter_app.counter_state {
+        CounterState::Connected { scratchpad, .. } => println!("{:?}", scratchpad),
+        _ => (),
+    }
+    // println!(
+    //     "{:?}",
+    //     let CounterState::Connected {
+    //         client: _,
+    //         scratchpad: scratchpad,
+    //         key: _
+    //     } = counter_app.counter_state
+    // );
     Ok(())
 }
-//     "u" -> {
 
-// let path = Path::new("key");
-// // if path file already exist connect using that otherwise create new key
-// if path.try_exists().unwrap_or(false) {
-// }
-// }
-// }
-// // // initialize a local client and test wallet
-// // let client = Client::init_local().await?;
-// } else {
-//     let wallet = get_funded_wallet().await?;
-//     counter_app.create(path, wallet).await?;
-// }
-
-// // if file exists import key from file otherwise create it and save to file
-// let key = match fs::read_to_string(path) {
-//     Ok(key) => SecretKey::from_hex(&key)?,
-//     Err(_) => create_key(path)?,
-// };
-// println!("{}", key.to_hex());
-
-// let public_key = key.public_key();
-
-// // if scratchpad already exists download data...and deserialize into a local Counter
-// // populate local scratch pad variable with it
-// // if not creat a new local counter then store in a new scratch pad
-// // populate local scrach pad variable with it
-
-// let mut counter;
-// let mut scratchpad = match client.scratchpad_get_from_public_key(&public_key).await {
-//     Ok(scratchpad) => {
-//         counter = bincode::deserialize(&scratchpad.decrypt_data(&key)?)?;
-//         scratchpad
-//     }
-//     Err(_) => {
-//         counter = Counter::new()?;
-//         let counter_seralized = bincode::serialize(&counter)?;
-//         let content = Bytes::from(counter_seralized);
-//         let payment_option = PaymentOption::from(wallet);
-//         let content_type = 99;
-//         let (cost, addr) = client
-//             .scratchpad_create(&key, content_type, &content, payment_option)
-//             .await?;
-//         println!("scratchpad create cost: {cost} addr {addr}");
-//         //wait for the scratchpad to be replicated
-//         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-//         client.scratchpad_get(&addr).await?
-//     }
-// };
-
-// println!("{:?}", counter);
-// println!("{:?}", scratchpad);
 // match counter.reset_if_next_period()? {
 //     true => {
 //         scratchpad = update_scratchpad_counter(&client, &scratchpad, &counter, &key).await?

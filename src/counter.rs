@@ -1,10 +1,10 @@
-use autonomi::client::data_types::scratchpad::ScratchpadError;
 use autonomi::client::payment::PaymentOption;
 use autonomi::client::scratchpad::Bytes;
 use autonomi::{Client, Scratchpad, SecretKey, Wallet};
-use eyre::{OptionExt, Result};
+use eyre::Result;
 use jiff::{ToSpan, Zoned};
 use serde::{Deserialize, Serialize};
+use std::clone;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
@@ -104,7 +104,7 @@ impl CounterApp {
         // initiate a client (connect) and create local counter
         let client = Client::init_local().await?;
         self.counter = Counter::new()?;
-        // searlize counter and create scratchpad with it
+        // seralize counter and create scratchpad with it
         let counter_seralized = bincode::serialize(&self.counter)?;
         let content = Bytes::from(counter_seralized);
         let payment_option = PaymentOption::from(wallet);
@@ -150,59 +150,52 @@ impl CounterApp {
 
     // try and conneect to existing scratchpad
     pub async fn connect(&mut self) -> Result<()> {
-        let mut key: SecretKey;
-        if let Some(key_got) = self.get_key() {
-            key = key_got.clone();
-        } else {
+        let Some(key) = self.get_key() else {
             println!("No key is loaded");
             return Ok(());
-        }
+        };
+        let key = key.clone();
         let public_key = key.public_key();
         let client = Client::init_local().await?;
         let scratchpad = client.scratchpad_get_from_public_key(&public_key).await?;
+        self.counter = bincode::deserialize(&scratchpad.decrypt_data(&key)?)?;
         self.counter_state = CounterState::Connected {
             client,
             scratchpad,
-            key,
+            key: key.clone(),
         };
+
         Ok(())
     }
 
-    //     let key = self
-    //         .connected_scratchpad
-    //         .as_ref()
-    //         .ok_or(ScratchpadError::Missing)?
-    //         .key
-    //         .clone();
-    //     let public_key = key.public_key();
-    //     let client_option = Client::init_local().await;
-    //     match client_option {
-    //         Err(connect_error) => Err(connect_error.into()),
-    //         Ok(client) => {
-    //             let scratchpad = client.scratchpad_get_from_public_key(&public_key).await?;
-    //             self.connected_scratchpad = Some(ConnectedScratchpad {
-    //                 client,
-    //                 scratchpad,
-    //                 key,
-    //             });
-    //             self.app_mode = AppMode::Counting(CountingMode::Connected);
-    //             Ok(())
-    //         }
-    //     }
-    // }
+    // this interpets any error as inditive of not being connected hence false returned iseteaf of result
+    pub async fn is_connected(&self) -> bool {
+        let mut connected = false;
+        match &self.counter_state {
+            CounterState::Connected {
+                client,
+                scratchpad,
+                key,
+            } => {
+                connected = client
+                    .scratchpad_check_existance(scratchpad.address())
+                    .await
+                    .unwrap_or(false)
+            }
+            _ => (),
+        }
+        connected
+    }
 
-    //     // this interpets any error as inditive of not being connected hence false returned iseteaf of result
-    //     pub async fn is_connected(&self) -> bool {
-    //         let mut connected = false;
-    //         if let Some(connected_scratchpad) = &self.connected_scratchpad {
-    //             connected = connected_scratchpad
-    //                 .client
-    //                 .scratchpad_check_existance(&connected_scratchpad.scratchpad.address())
-    //                 .await
-    //                 .unwrap_or(false)
-    //         }
-    //         connected
+    //     if let Some(connected_scratchpad) = &self.connected_scratchpad {
+    //         connected = connected_scratchpad
+    //             .client
+    //             .scratchpad_check_existance(&connected_scratchpad.scratchpad.address())
+    //             .await
+    //             .unwrap_or(false)
     //     }
+    //     connected
+    // }
 
     //     pub async fn get_network_counter(&self) -> Result<Counter> {
     //         if let Some(connected_scratchpad) = &self.connected_scratchpad {
