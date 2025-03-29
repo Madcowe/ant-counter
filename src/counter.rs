@@ -1,6 +1,6 @@
 use autonomi::client::payment::PaymentOption;
+use autonomi::client::scratchpad;
 use autonomi::client::scratchpad::Bytes;
-use autonomi::client::scratchpad::ScratchpadError;
 use autonomi::{Client, Scratchpad, SecretKey, Wallet};
 use eyre::Result;
 use jiff::{ToSpan, Zoned};
@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::clone;
 use std::fs::File;
 use std::io::Write;
+use std::mem;
 use std::path::Path;
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
@@ -133,6 +134,17 @@ impl CounterApp {
         println!("CounterState::{description}");
     }
 
+    pub fn print_scratchpad(&self) -> Result<()> {
+        if let CounterState::Connected { scratchpad, .. } = &self.counter_state {
+            println!(
+                "scratchpad version {:?}, value: {:?}",
+                scratchpad.counter(),
+                self.counter
+            );
+        }
+        Ok(())
+    }
+
     pub fn set_key_from_hex(&mut self, hex_key: &str) -> Result<()> {
         self.counter_state = CounterState::WithKey(SecretKey::from_hex(&hex_key)?);
         if let Some(key) = self.get_key() {
@@ -177,7 +189,7 @@ impl CounterApp {
         } = &self.counter_state
         else {
             println!("Can't get network counter");
-            return Err(ScratchpadError::Missing.into()); // replace with local error
+            return Err(scratchpad::ScratchpadError::Missing.into()); // replace with local error
         };
         let counter = bincode::deserialize(
             &client
@@ -190,7 +202,7 @@ impl CounterApp {
 
     pub async fn upload(&mut self) -> Result<()> {
         let counter = self.counter.clone();
-        print!("{:?}", &self.counter);
+        println!("{:?}", &self.counter);
         let counter_serailzed = bincode::serialize(&self.counter)?;
         let content = Bytes::from(counter_serailzed);
         let content_type = self.content_type;
@@ -215,14 +227,33 @@ impl CounterApp {
         Ok(())
     }
 
+    pub async fn download(&mut self) -> Result<()> {
+        let CounterState::Connected {
+            client,
+            scratchpad,
+            key,
+        } = &mut self.counter_state
+        else {
+            println!("Not connected to antnet");
+            return Err(scratchpad::ScratchpadError::Missing.into()); // replace with local error
+        };
+        let addr = scratchpad.address();
+        let scratchpad = client.scratchpad_get(addr).await?;
+        self.counter = bincode::deserialize(&scratchpad.decrypt_data(&key)?)?;
+        self.counter_state = CounterState::Connected {
+            client: client.clone(),
+            scratchpad,
+            key: key.clone(),
+        };
+        Ok(())
+    }
+
     // this interpets any error as inditive of not being connected hence false returned iseteaf of result
     pub async fn is_connected(&self) -> bool {
         let mut connected = false;
         match &self.counter_state {
             CounterState::Connected {
-                client,
-                scratchpad,
-                key,
+                client, scratchpad, ..
             } => {
                 connected = client
                     .scratchpad_check_existance(scratchpad.address())
@@ -243,16 +274,6 @@ impl CounterApp {
     //     }
     //     connected
     // }
-
-    //     pub async fn download(&mut self) -> Result<()> {
-    //         if let Some(mut connected_scratchpad) = self.connected_scratchpad.as_mut() {
-    //             connected_scratchpad.scratchpad = connected_scratchpad
-    //                 .client
-    //                 .scratchpad_get(connected_scratchpad.scratchpad.address())
-    //                 .await?;
-    //         }
-    //         Ok(())
-    //     }
 }
 
 fn get_start_of_next_week() -> Result<Zoned, jiff::Error> {
