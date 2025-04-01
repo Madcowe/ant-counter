@@ -15,6 +15,7 @@ async fn main() -> Result<()> {
 
 async fn run() -> Result<()> {
     let path = Path::new("key");
+    let private_key = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
     // create app
     let mut counter_app = CounterApp::new()?;
     // get input from user
@@ -34,8 +35,7 @@ async fn run() -> Result<()> {
                 }
             }
             "c" => {
-                let wallet = get_funded_wallet().await?;
-                counter_app.create(&path, &wallet).await?;
+                counter_app.create(&path, &private_key).await?;
             }
             "q" => break,
             _ => {
@@ -78,7 +78,6 @@ async fn run() -> Result<()> {
         // reset counter if needed
         match counter_app.counter.reset_if_next_period()? {
             true => {
-                println!("Reset gubbins");
                 counter_app.upload().await?;
                 counter_app.download().await?; // so local scratchpad synced
                 counter_app.print_scratchpad()?;
@@ -115,13 +114,4 @@ async fn run() -> Result<()> {
         counter_app.print_scratchpad()?;
     }
     Ok(())
-}
-
-async fn get_funded_wallet() -> Result<Wallet> {
-    let private_key = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
-    let network = Network::new(true)?;
-    let wallet = Wallet::new_from_private_key(network, private_key)?;
-    println!("Wallet address: {}", wallet.address());
-    println!("Wallet ballance: {}", wallet.balance_of_tokens().await?);
-    Ok(wallet)
 }

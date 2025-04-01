@@ -1,7 +1,7 @@
 use autonomi::client::payment::PaymentOption;
 use autonomi::client::scratchpad;
 use autonomi::client::scratchpad::Bytes;
-use autonomi::{Client, Scratchpad, SecretKey, Wallet};
+use autonomi::{Client, Network, Scratchpad, SecretKey, Wallet};
 use eyre::Result;
 use jiff::{ToSpan, Zoned};
 use serde::{Deserialize, Serialize};
@@ -96,32 +96,46 @@ impl CounterApp {
         })
     }
 
-    pub async fn create(&mut self, path: &Path, wallet: &Wallet) -> Result<()> {
+    pub async fn create(&mut self, path: &Path, private_key: &str) -> Result<()> {
         // create new key and save to file
         let key = autonomi::SecretKey::random();
         let key_hex = key.to_hex();
         println!("New key: {}", key_hex);
         let mut file = File::create(&path)?;
         file.write_all(key_hex.as_bytes())?;
-        // initiate a client (connect) and create local counter
-        let client = Client::init_local().await?;
+        // create local counter
         self.counter = Counter::new()?;
-        // seralize counter and create scratchpad with it
-        let counter_seralized = bincode::serialize(&self.counter)?;
-        let content = Bytes::from(counter_seralized);
-        let payment_option = PaymentOption::from(wallet);
-        let (cost, addr) = client
-            .scratchpad_create(&key, self.content_type, &content, payment_option)
-            .await?;
-        println!("Scratchpad created, cost: {cost} addr {addr}");
-        // wait for scratchpad to be replicated
-        tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
-        let scratchpad = client.scratchpad_get(&addr).await?;
-        self.counter_state = CounterState::Connected {
-            client,
-            scratchpad,
-            key,
+        // attempt to creat wallet
+        let wallet = match get_funded_wallet(&private_key).await {
+            Err(_) => {
+                println!("Cannot get funds to create wallet.");
+                self.counter_state = CounterState::WithKey(key);
+                return Ok(());
+            }
+            Ok(wallet) => wallet,
         };
+        // attempt to connect safenet and create new scratch pad
+        if let Ok(client) = Client::init_local().await {
+            // seralize counter and create scratchpad with it
+            let counter_seralized = bincode::serialize(&self.counter)?;
+            let content = Bytes::from(counter_seralized);
+            let payment_option = PaymentOption::from(wallet);
+            let (cost, addr) = client
+                .scratchpad_create(&key, self.content_type, &content, payment_option)
+                .await?;
+            println!("Scratchpad created, cost: {cost} addr {addr}");
+            // wait for scratchpad to be replicated
+            tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+            let scratchpad = client.scratchpad_get(&addr).await?;
+            self.counter_state = CounterState::Connected {
+                client,
+                scratchpad,
+                key,
+            };
+            return Ok(());
+        }
+        println!("Cannot connect to antnet to create scratchpad");
+        self.counter_state = CounterState::WithKey(key);
         Ok(())
     }
 
@@ -286,4 +300,12 @@ fn get_start_of_next_week() -> Result<Zoned, jiff::Error> {
 fn get_a_minute_from_now() -> Result<Zoned, jiff::Error> {
     let now = Zoned::now();
     Ok(&now + 1.minute())
+}
+
+async fn get_funded_wallet(private_key: &str) -> Result<Wallet> {
+    let network = Network::new(true)?;
+    let wallet = Wallet::new_from_private_key(network, private_key)?;
+    println!("Wallet address: {}", wallet.address());
+    println!("Wallet ballance: {}", wallet.balance_of_tokens().await?);
+    Ok(wallet)
 }
