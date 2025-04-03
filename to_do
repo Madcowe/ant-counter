@@ -3,10 +3,13 @@
     - Creating a wallet
         - No payment netowrk [x]
         - No antnet [x]
-    - With no antnet
-        - Using an existing wallet [x]
-        - Incrementing []
-        - Reseting []
+    - Using an existing wallet
+        - With no antnet [x]
+        - When scratchpad doesn't already exist [x]
+    - Incrementing
+        - With no antnet
+        - When not already connected []
+    - Reseting []
 - Issue sometimes quiting is dealy due to a restart happening??
 - Sort out custom error handling
 - Nice ratatui front end

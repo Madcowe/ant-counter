@@ -62,22 +62,25 @@ impl Counter {
 
 pub enum CounterState {
     Initiating,
-    WithKey(SecretKey),
+    Local,
+    LocalWithKey(SecretKey),
     Connected {
         client: Client,
         scratchpad: Scratchpad,
         key: SecretKey,
     },
-    Quiting,
+    Quitting,
 }
 
+// so only matches on enum name not any cotanied elements
 impl PartialEq for CounterState {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (CounterState::Initiating, CounterState::Initiating) => true,
-            (CounterState::WithKey(_), CounterState::WithKey(_)) => true,
+            (CounterState::Local, CounterState::Local) => true,
+            (CounterState::LocalWithKey(_), CounterState::LocalWithKey(_)) => true,
             (CounterState::Connected { .. }, CounterState::Connected { .. }) => true,
-            (CounterState::Initiating, CounterState::Quiting) => true,
+            (CounterState::Quitting, CounterState::Quitting) => true,
             _ => false,
         }
     }
@@ -122,7 +125,7 @@ impl CounterApp {
         let wallet = match get_funded_wallet(&private_key).await {
             Err(_) => {
                 println!("Cannot get funds to create wallet.");
-                self.counter_state = CounterState::WithKey(key);
+                self.counter_state = CounterState::LocalWithKey(key);
                 return Ok(());
             }
             Ok(wallet) => wallet,
@@ -147,17 +150,18 @@ impl CounterApp {
             };
             return Ok(());
         }
-        println!("Cannot connect to antnet to create scratchpad");
-        self.counter_state = CounterState::WithKey(key);
+        println!("Cannot connect to antnet to create scratchpad...using local counter");
+        self.counter_state = CounterState::LocalWithKey(key);
         Ok(())
     }
 
     pub fn print_counter_state(&self) {
         let description = match self.counter_state {
             CounterState::Initiating => "Initiating",
-            CounterState::WithKey(_) => "With Key",
+            CounterState::Local => "Local",
+            CounterState::LocalWithKey(_) => "Local With Key",
             CounterState::Connected { .. } => "Connected",
-            CounterState::Quiting => "Quiting",
+            CounterState::Quitting => "Quitting",
         };
         println!("CounterState::{description}");
     }
@@ -174,7 +178,7 @@ impl CounterApp {
     }
 
     pub fn set_key_from_hex(&mut self, hex_key: &str) -> Result<()> {
-        self.counter_state = CounterState::WithKey(SecretKey::from_hex(&hex_key)?);
+        self.counter_state = CounterState::LocalWithKey(SecretKey::from_hex(&hex_key)?);
         if let Some(key) = self.get_key() {
             println!("Key loaded: {}", key.to_hex());
         }
@@ -183,7 +187,7 @@ impl CounterApp {
 
     pub fn get_key(&self) -> Option<&SecretKey> {
         match &self.counter_state {
-            CounterState::WithKey(key) => Some(key),
+            CounterState::LocalWithKey(key) => Some(key),
             CounterState::Connected { key, .. } => Some(key),
             _ => None,
         }
@@ -199,10 +203,14 @@ impl CounterApp {
         let public_key = key.public_key();
         let Ok(client) = Client::init_local().await else {
             println!("Can't connect to antnet...using local counter");
-            self.counter_state = CounterState::WithKey(key);
+            self.counter_state = CounterState::LocalWithKey(key);
             return Ok(());
         };
-        let scratchpad = client.scratchpad_get_from_public_key(&public_key).await?;
+        let Ok(scratchpad) = client.scratchpad_get_from_public_key(&public_key).await else {
+            println!("No scratchpad with that key on antnet...using local counter");
+            self.counter_state = CounterState::Local;
+            return Ok(());
+        };
         self.counter = bincode::deserialize(&scratchpad.decrypt_data(&key)?)?;
         self.counter_state = CounterState::Connected {
             client,

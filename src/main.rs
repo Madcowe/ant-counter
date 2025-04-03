@@ -37,7 +37,7 @@ async fn run() -> Result<()> {
             "c" => {
                 counter_app.create(&path, &private_key).await?;
             }
-            "q" => counter_app.counter_state = CounterState::Quiting,
+            "q" => counter_app.counter_state = CounterState::Quitting,
             _ => {
                 println!("Unrecognised command");
                 continue;
@@ -46,7 +46,7 @@ async fn run() -> Result<()> {
         counter_app.print_counter_state();
     }
 
-    if !(CounterState::Quiting == counter_app.counter_state) {
+    if !(CounterState::Quitting == counter_app.counter_state) {
         println!("{:?}", counter_app.counter);
         if counter_app.is_connected().await {
             counter_app.download().await?;
