@@ -37,7 +37,7 @@ async fn run() -> Result<()> {
             "c" => {
                 counter_app.create(&path, &private_key).await?;
             }
-            "q" => break,
+            "q" => counter_app.counter_state = CounterState::Quiting,
             _ => {
                 println!("Unrecognised command");
                 continue;
@@ -45,64 +45,63 @@ async fn run() -> Result<()> {
         }
         counter_app.print_counter_state();
     }
-    println!("{:?}", counter_app.counter);
-    if counter_app.is_connected().await {
-        counter_app.download().await?;
-        counter_app.print_scratchpad()?;
-    }
-    // match counter_app.counter_state {
-    //     CounterState::Connected { ref scratchpad, .. } => println!("{:?}", scratchpad),
-    //     _ => (),
-    // }
-    // reset counter if needed
-    match counter_app.counter.reset_if_next_period()? {
-        true => {
-            counter_app.upload().await?;
-            println!("{:?}", counter_app.counter);
-        }
-        _ => (),
-    }
-    // loop asking user for value to store and then storing on scratch pad
-    loop {
-        // get input from user
-        println!("Enter i to increment counter, r to reset or q to quit:");
-        let mut input = String::new();
-        io::stdin().read_line(&mut input)?;
-        let input = input.trim();
-        // if connected get counter from antnet
+
+    if !(CounterState::Quiting == counter_app.counter_state) {
+        println!("{:?}", counter_app.counter);
         if counter_app.is_connected().await {
-            // need to implement
-            // if not connected this app instance but now can get counter and add local counter to it
             counter_app.download().await?;
+            counter_app.print_scratchpad()?;
         }
-        // reset counter if needed
         match counter_app.counter.reset_if_next_period()? {
             true => {
                 counter_app.upload().await?;
-                counter_app.download().await?; // so local scratchpad synced
-                counter_app.print_scratchpad()?;
+                println!("{:?}", counter_app.counter);
             }
             _ => (),
         }
-        // if not connected but have been connected update to local counter
 
-        match input {
-            "i" => {
-                counter_app.counter.increment();
-                counter_app.upload().await?;
-                counter_app.download().await?; // so local scratchpad synced
-                counter_app.print_scratchpad()?;
+        // loop asking user for value to store and then storing on scratch pad
+        loop {
+            // get input from user
+            println!("Enter i to increment counter, r to reset or q to quit:");
+            let mut input = String::new();
+            io::stdin().read_line(&mut input)?;
+            let input = input.trim();
+            // if connected get counter from antnet
+            if counter_app.is_connected().await {
+                // need to implement
+                // if not connected this app instance but now can get counter and add local counter to it
+                counter_app.download().await?;
             }
-            "r" => {
-                counter_app.counter.reset();
-                counter_app.upload().await?;
-                counter_app.download().await?; // so local scratchpad synced
-                counter_app.print_scratchpad()?;
+            // reset counter if needed
+            match counter_app.counter.reset_if_next_period()? {
+                true => {
+                    counter_app.upload().await?;
+                    counter_app.download().await?; // so local scratchpad synced
+                    counter_app.print_scratchpad()?;
+                }
+                _ => (),
             }
-            "q" => break,
-            _ => {
-                println!("Inrecognised command");
-                continue;
+            // if not connected but have been connected update to local counter
+
+            match input {
+                "i" => {
+                    counter_app.counter.increment();
+                    counter_app.upload().await?;
+                    counter_app.download().await?; // so local scratchpad synced
+                    counter_app.print_scratchpad()?;
+                }
+                "r" => {
+                    counter_app.counter.reset();
+                    counter_app.upload().await?;
+                    counter_app.download().await?; // so local scratchpad synced
+                    counter_app.print_scratchpad()?;
+                }
+                "q" => break,
+                _ => {
+                    println!("Inrecognised command");
+                    continue;
+                }
             }
         }
     }

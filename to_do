@@ -1,11 +1,13 @@
 // To do
 - Deal with ant network being not accessiable
     - Creating a wallet
-        - No patment netowrk [x]
+        - No payment netowrk [x]
         - No antnet [x]
-    - Using an existing wallet
-    - Incrementing
-    - Reseting
+    - With no antnet
+        - Using an existing wallet [x]
+        - Incrementing []
+        - Reseting []
+- Issue sometimes quiting is dealy due to a restart happening??
 - Sort out custom error handling
 - Nice ratatui front end
 - Modify to run on live network

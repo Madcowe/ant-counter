@@ -68,6 +68,19 @@ pub enum CounterState {
         scratchpad: Scratchpad,
         key: SecretKey,
     },
+    Quiting,
+}
+
+impl PartialEq for CounterState {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (CounterState::Initiating, CounterState::Initiating) => true,
+            (CounterState::WithKey(_), CounterState::WithKey(_)) => true,
+            (CounterState::Connected { .. }, CounterState::Connected { .. }) => true,
+            (CounterState::Initiating, CounterState::Quiting) => true,
+            _ => false,
+        }
+    }
 }
 
 pub struct CounterApp {
@@ -144,6 +157,7 @@ impl CounterApp {
             CounterState::Initiating => "Initiating",
             CounterState::WithKey(_) => "With Key",
             CounterState::Connected { .. } => "Connected",
+            CounterState::Quiting => "Quiting",
         };
         println!("CounterState::{description}");
     }
@@ -171,7 +185,7 @@ impl CounterApp {
         match &self.counter_state {
             CounterState::WithKey(key) => Some(key),
             CounterState::Connected { key, .. } => Some(key),
-            CounterState::Initiating => None,
+            _ => None,
         }
     }
 
@@ -183,7 +197,11 @@ impl CounterApp {
         };
         let key = key.clone();
         let public_key = key.public_key();
-        let client = Client::init_local().await?;
+        let Ok(client) = Client::init_local().await else {
+            println!("Can't connect to antnet...using local counter");
+            self.counter_state = CounterState::WithKey(key);
+            return Ok(());
+        };
         let scratchpad = client.scratchpad_get_from_public_key(&public_key).await?;
         self.counter = bincode::deserialize(&scratchpad.decrypt_data(&key)?)?;
         self.counter_state = CounterState::Connected {
@@ -191,7 +209,6 @@ impl CounterApp {
             scratchpad,
             key: key.clone(),
         };
-
         Ok(())
     }
 
