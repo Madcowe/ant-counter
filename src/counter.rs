@@ -155,15 +155,14 @@ impl CounterApp {
         Ok(())
     }
 
-    pub fn print_counter_state(&self) {
-        let description = match self.counter_state {
+    pub fn get_counter_state(&self) -> &str {
+        match self.counter_state {
             CounterState::Initiating => "Initiating",
             CounterState::Local => "Local",
             CounterState::LocalWithKey(_) => "Local With Key",
             CounterState::Connected { .. } => "Connected",
             CounterState::Quitting => "Quitting",
-        };
-        println!("CounterState::{description}");
+        }
     }
 
     pub fn print_scratchpad(&self) -> Result<()> {
@@ -241,7 +240,6 @@ impl CounterApp {
 
     pub async fn upload(&mut self) -> Result<()> {
         let counter = self.counter.clone();
-        println!("{:?}", &self.counter);
         let counter_serailzed = bincode::serialize(&self.counter)?;
         let content = Bytes::from(counter_serailzed);
         let content_type = self.content_type;
@@ -288,16 +286,22 @@ impl CounterApp {
     }
 
     // this interpets any error as inditive of not being connected hence false returned iseteaf of result
-    pub async fn is_connected(&self) -> bool {
+    // changes coutner state from connected to LocalWithKey if fails
+    pub async fn is_connected(&mut self) -> bool {
         let mut connected = false;
         match &self.counter_state {
             CounterState::Connected {
-                client, scratchpad, ..
+                client,
+                scratchpad,
+                key,
             } => {
                 connected = client
                     .scratchpad_check_existance(scratchpad.address())
                     .await
-                    .unwrap_or(false)
+                    .unwrap_or(false);
+                if connected == false {
+                    self.counter_state = CounterState::LocalWithKey(key.clone());
+                }
             }
             _ => (),
         }

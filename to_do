@@ -7,12 +7,16 @@
         - With no antnet [x]
         - When scratchpad doesn't already exist [x]
     - Incrementing
-        - With no antnet
-        - When not already connected []
-    - Reseting []
+        - With no antnet [x]
+        - When not already connected [x]
+    - Reseting [x]
+- Need to try to reconnect when not connected
+    - How to deal with locals if it can the connect?
+- Test how network dropping out effect it.
 - Issue sometimes quiting is dealy due to a restart happening??
 - Sort out custom error handling
 - Nice ratatui front end
+- Decide on any other state needed and implement data/methods for
 - Modify to run on live network
 - Deploy to live network
 - Consider possbilities for android...try compliling in termex

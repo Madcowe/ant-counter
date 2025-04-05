@@ -19,7 +19,7 @@ async fn run() -> Result<()> {
     // create app
     let mut counter_app = CounterApp::new()?;
     // get input from user
-    counter_app.print_counter_state();
+    println!("{}", counter_app.get_counter_state());
     while let CounterState::Initiating = counter_app.counter_state {
         println!("Enter (u) to use existing counter, (c) to create a new one or (q) to quit:");
         let mut input = String::new();
@@ -43,7 +43,7 @@ async fn run() -> Result<()> {
                 continue;
             }
         }
-        counter_app.print_counter_state();
+        println!("{}", counter_app.get_counter_state());
     }
 
     if !(CounterState::Quitting == counter_app.counter_state) {
@@ -62,12 +62,13 @@ async fn run() -> Result<()> {
 
         // loop asking user for value to store and then storing on scratch pad
         loop {
+            println!("{}", counter_app.get_counter_state());
             // get input from user
             println!("Enter i to increment counter, r to reset or q to quit:");
             let mut input = String::new();
             io::stdin().read_line(&mut input)?;
             let input = input.trim();
-            // if connected get counter from antnet
+            // ifconnected get counter from antnet
             if counter_app.is_connected().await {
                 // need to implement
                 // if not connected this app instance but now can get counter and add local counter to it
@@ -76,9 +77,12 @@ async fn run() -> Result<()> {
             // reset counter if needed
             match counter_app.counter.reset_if_next_period()? {
                 true => {
-                    counter_app.upload().await?;
-                    counter_app.download().await?; // so local scratchpad synced
-                    counter_app.print_scratchpad()?;
+                    println!("{:?}", counter_app.counter);
+                    if counter_app.is_connected().await {
+                        counter_app.upload().await?;
+                        counter_app.download().await?; // so local scratchpad synced
+                        counter_app.print_scratchpad()?;
+                    }
                 }
                 _ => (),
             }
@@ -87,19 +91,25 @@ async fn run() -> Result<()> {
             match input {
                 "i" => {
                     counter_app.counter.increment();
-                    counter_app.upload().await?;
-                    counter_app.download().await?; // so local scratchpad synced
-                    counter_app.print_scratchpad()?;
+                    println!("{:?}", counter_app.counter);
+                    if counter_app.is_connected().await {
+                        counter_app.upload().await?;
+                        counter_app.download().await?; // so local scratchpad synced
+                        counter_app.print_scratchpad()?;
+                    }
                 }
                 "r" => {
                     counter_app.counter.reset();
-                    counter_app.upload().await?;
-                    counter_app.download().await?; // so local scratchpad synced
-                    counter_app.print_scratchpad()?;
+                    println!("{:?}", counter_app.counter);
+                    if counter_app.is_connected().await {
+                        counter_app.upload().await?;
+                        counter_app.download().await?; // so local scratchpad synced
+                        counter_app.print_scratchpad()?;
+                    }
                 }
                 "q" => break,
                 _ => {
-                    println!("Inrecognised command");
+                    println!("Unrecognised command");
                     continue;
                 }
             }
@@ -107,7 +117,7 @@ async fn run() -> Result<()> {
     }
     // download and print results
     println!("Final state:");
-    counter_app.print_counter_state();
+    println!("{}", counter_app.get_counter_state());
     if counter_app.is_connected().await {
         counter_app.download().await?;
         counter_app.print_scratchpad()?;
