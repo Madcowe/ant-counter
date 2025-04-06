@@ -1,4 +1,3 @@
-use autonomi::{Client, ClientConfig, Network, Scratchpad, SecretKey, Wallet};
 use counter::{Counter, CounterApp, CounterState};
 use eyre::Result;
 use std::fs;
@@ -54,7 +53,9 @@ async fn run() -> Result<()> {
         }
         match counter_app.counter.reset_if_next_period()? {
             true => {
-                counter_app.upload().await?;
+                if counter_app.is_connected().await {
+                    counter_app.upload().await?;
+                }
                 println!("{:?}", counter_app.counter);
             }
             _ => (),
@@ -68,23 +69,11 @@ async fn run() -> Result<()> {
             let mut input = String::new();
             io::stdin().read_line(&mut input)?;
             let input = input.trim();
-            // ifconnected get counter from antnet
-            if counter_app.is_connected().await {
+            // if connected get counter from antnet
+            if counter_app.get_counter_state() == "connected" {
                 // need to implement
                 // if not connected this app instance but now can get counter and add local counter to it
                 counter_app.download().await?;
-            }
-            // reset counter if needed
-            match counter_app.counter.reset_if_next_period()? {
-                true => {
-                    println!("{:?}", counter_app.counter);
-                    if counter_app.is_connected().await {
-                        counter_app.upload().await?;
-                        counter_app.download().await?; // so local scratchpad synced
-                        counter_app.print_scratchpad()?;
-                    }
-                }
-                _ => (),
             }
             // if not connected but have been connected update to local counter
 
@@ -112,6 +101,23 @@ async fn run() -> Result<()> {
                     println!("Unrecognised command");
                     continue;
                 }
+            }
+            // if not connected attempt to connect
+            if counter_app.is_connected().await == false {
+                println!("Trying to connect to antnet...");
+                counter_app.connect().await?;
+            }
+            // reset counter if needed
+            match counter_app.counter.reset_if_next_period()? {
+                true => {
+                    println!("{:?}", counter_app.counter);
+                    if counter_app.is_connected().await {
+                        counter_app.upload().await?;
+                        counter_app.download().await?; // so local scratchpad synced
+                        counter_app.print_scratchpad()?;
+                    }
+                }
+                _ => (),
             }
         }
     }

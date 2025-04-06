@@ -195,8 +195,13 @@ impl CounterApp {
     // try and conneect to existing scratchpad
     pub async fn connect(&mut self) -> Result<()> {
         let Some(key) = self.get_key() else {
-            println!("No key is loaded");
-            return Ok(());
+            match self.counter_state {
+                CounterState::Initiating => {
+                    println!("No key is loaded");
+                    return Ok(());
+                }
+                _ => return Ok(()), // if they was never a key it just contuues to run locally
+            }
         };
         let key = key.clone();
         let public_key = key.public_key();
