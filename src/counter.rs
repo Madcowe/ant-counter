@@ -5,10 +5,8 @@ use autonomi::{Client, Network, Scratchpad, SecretKey, Wallet};
 use eyre::Result;
 use jiff::{ToSpan, Zoned};
 use serde::{Deserialize, Serialize};
-use std::clone;
 use std::fs::File;
 use std::io::Write;
-use std::mem;
 use std::path::Path;
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
@@ -222,6 +220,12 @@ impl CounterApp {
             key: key.clone(),
         };
         Ok(())
+    }
+
+    // to test disconnecting an reconnecting as can't seme to restart local network
+    pub fn disconnect(&mut self) {
+        let Some(key) = self.get_key() else { return };
+        self.counter_state = CounterState::LocalWithKey(key.clone());
     }
 
     pub async fn get_network_counter(&self) -> Result<Counter> {

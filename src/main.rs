@@ -1,7 +1,7 @@
-use counter::{Counter, CounterApp, CounterState};
+use counter::{CounterApp, CounterState};
 use eyre::Result;
 use std::fs;
-use std::io::{self, Write};
+use std::io::{self};
 use std::path::Path;
 
 mod counter;
@@ -65,7 +65,7 @@ async fn run() -> Result<()> {
         loop {
             println!("{}", counter_app.get_counter_state());
             // get input from user
-            println!("Enter i to increment counter, r to reset or q to quit:");
+            println!("Enter i to increment counter, r to reset, d to disconnect or q to quit:");
             let mut input = String::new();
             io::stdin().read_line(&mut input)?;
             let input = input.trim();
@@ -96,6 +96,7 @@ async fn run() -> Result<()> {
                         counter_app.print_scratchpad()?;
                     }
                 }
+                "d" => counter_app.disconnect(),
                 "q" => break,
                 _ => {
                     println!("Unrecognised command");
