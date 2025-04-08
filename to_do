@@ -11,9 +11,6 @@
         - When not already connected [x]
     - Reseting [x]
 - Need to try to reconnect when not connected
-    - Doesn't seem to be a way to restart local network with same data...
-    - Could add a disconect option into the program to test reconnection [x]
-    - however reconnects immediatley after disconnecting...
     - How to deal with locals if it can the connect?
 - Test how network dropping out effect it.
 - Issue sometimes quiting is dealy due to a restart happening??

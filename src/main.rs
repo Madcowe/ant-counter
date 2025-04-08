@@ -65,7 +65,7 @@ async fn run() -> Result<()> {
         loop {
             println!("{}", counter_app.get_counter_state());
             // get input from user
-            println!("Enter i to increment counter, r to reset, d to disconnect or q to quit:");
+            println!("Enter i to increment counter, r to reset, d to disconnect (testing), c to connect (testing) or q to quit:");
             let mut input = String::new();
             io::stdin().read_line(&mut input)?;
             let input = input.trim();
@@ -96,18 +96,29 @@ async fn run() -> Result<()> {
                         counter_app.print_scratchpad()?;
                     }
                 }
-                "d" => counter_app.disconnect(),
+                "d" => {
+                    counter_app.disconnect();
+                    println!("{:?}", counter_app.counter);
+                }
+                "c" => {
+                    // if not connected attempt to connect
+                    if counter_app.is_connected().await == false {
+                        println!("Trying to connect to antnet...");
+                        counter_app.connect().await?;
+                        counter_app.print_scratchpad()?;
+                    }
+                }
                 "q" => break,
                 _ => {
                     println!("Unrecognised command");
                     continue;
                 }
             }
-            // if not connected attempt to connect
-            if counter_app.is_connected().await == false {
-                println!("Trying to connect to antnet...");
-                counter_app.connect().await?;
-            }
+            // // if not connected attempt to connect
+            // if counter_app.is_connected().await == false {
+            //     println!("Trying to connect to antnet...");
+            //     counter_app.connect().await?;
+            // }
             // reset counter if needed
             match counter_app.counter.reset_if_next_period()? {
                 true => {

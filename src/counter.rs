@@ -222,7 +222,7 @@ impl CounterApp {
         Ok(())
     }
 
-    // to test disconnecting an reconnecting as can't seme to restart local network
+    // to test disconnecting as reconnecting as can't seme to restart local network
     pub fn disconnect(&mut self) {
         let Some(key) = self.get_key() else { return };
         self.counter_state = CounterState::LocalWithKey(key.clone());
