@@ -70,13 +70,10 @@ async fn run() -> Result<()> {
             io::stdin().read_line(&mut input)?;
             let input = input.trim();
             // if connected get counter from antnet
-            if counter_app.get_counter_state() == "connected" {
-                // need to implement
-                // if not connected this app instance but now can get counter and add local counter to it
+            if counter_app.get_counter_state() == "Connected" {
                 counter_app.download().await?;
+                println!("Downloaded before dealing with input")
             }
-            // if not connected but have been connected update to local counter
-
             match input {
                 "i" => {
                     counter_app.counter.increment();

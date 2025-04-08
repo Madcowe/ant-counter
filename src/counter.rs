@@ -46,7 +46,8 @@ impl Counter {
         let now = Zoned::now();
         if now > self.reset_zoned_date_time {
             self.reset();
-            self.reset_zoned_date_time = get_a_minute_from_now()?;
+            self.reset_zoned_date_time = get_start_of_next_week()?;
+            // self.reset_zoned_date_time = get_a_minute_from_now()?;
             reset = true;
             println!("Reseting as in new period")
         }
@@ -88,6 +89,7 @@ pub struct CounterApp {
     pub counter_state: CounterState,
     pub counter: Counter,
     pub content_type: u64,
+    pub has_already_connected: bool,
 }
 
 // #[derive(Debug, thiserror::Error)]
@@ -107,6 +109,7 @@ impl CounterApp {
             counter_state: CounterState::Initiating,
             counter: Counter::new()?,
             content_type: 99,
+            has_already_connected: false,
         })
     }
 
@@ -146,6 +149,7 @@ impl CounterApp {
                 scratchpad,
                 key,
             };
+            self.has_already_connected = true;
             return Ok(());
         }
         println!("Cannot connect to antnet to create scratchpad...using local counter");
@@ -213,12 +217,21 @@ impl CounterApp {
             self.counter_state = CounterState::Local;
             return Ok(());
         };
-        self.counter = bincode::deserialize(&scratchpad.decrypt_data(&key)?)?;
+        // if it hasn't already connected add the local count to the downloaded count
+        if !self.has_already_connected {
+            let count_to_add = self.counter.count;
+            self.counter = bincode::deserialize(&scratchpad.decrypt_data(&key)?)?;
+            self.counter.count += count_to_add;
+        }
         self.counter_state = CounterState::Connected {
             client,
             scratchpad,
             key: key.clone(),
         };
+        self.has_already_connected = true;
+        // sync the new counter value by uploading an downloading
+        self.upload().await?;
+        self.download().await?;
         Ok(())
     }
 
@@ -251,10 +264,9 @@ impl CounterApp {
         let counter = self.counter.clone();
         let counter_serailzed = bincode::serialize(&self.counter)?;
         let content = Bytes::from(counter_serailzed);
-        let content_type = self.content_type;
         let CounterState::Connected {
             client,
-            scratchpad,
+            scratchpad: _,
             key,
         } = &self.counter_state
         else {
@@ -281,7 +293,11 @@ impl CounterApp {
         } = &mut self.counter_state
         else {
             println!("Not connected to antnet");
-            return Err(scratchpad::ScratchpadError::Missing.into()); // replace with local error
+            self.counter_state = match self.get_key() {
+                Some(key) => CounterState::LocalWithKey(key.clone()),
+                None => CounterState::Local,
+            };
+            return Ok(());
         };
         let addr = scratchpad.address();
         let scratchpad = client.scratchpad_get(addr).await?;

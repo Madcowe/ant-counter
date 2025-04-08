@@ -1,17 +1,7 @@
 // To do
-- Deal with ant network being not accessiable
-    - Creating a wallet
-        - No payment netowrk [x]
-        - No antnet [x]
-    - Using an existing wallet
-        - With no antnet [x]
-        - When scratchpad doesn't already exist [x]
-    - Incrementing
-        - With no antnet [x]
-        - When not already connected [x]
-    - Reseting [x]
 - Need to try to reconnect when not connected
     - How to deal with locals if it can the connect?
+    - Need to count from disconnection in case mutiple isntancies and one disconnected
 - Test how network dropping out effect it.
 - Issue sometimes quiting is dealy due to a restart happening??
 - Sort out custom error handling
