@@ -25,7 +25,7 @@ impl Counter {
             max: 0,
             previous_count: 0,
             rolling_total: 0,
-            reset_zoned_date_time: get_a_minute_from_now()?,
+            reset_zoned_date_time: get_start_of_next_week()?,
         })
     }
 
@@ -89,7 +89,7 @@ pub struct CounterApp {
     pub counter_state: CounterState,
     pub counter: Counter,
     pub content_type: u64,
-    pub has_already_connected: bool,
+    pub disconnected_count: usize, // counts increment during disconnected periods
 }
 
 // #[derive(Debug, thiserror::Error)]
@@ -109,7 +109,7 @@ impl CounterApp {
             counter_state: CounterState::Initiating,
             counter: Counter::new()?,
             content_type: 99,
-            has_already_connected: false,
+            disconnected_count: 0,
         })
     }
 
@@ -149,12 +149,23 @@ impl CounterApp {
                 scratchpad,
                 key,
             };
-            self.has_already_connected = true;
             return Ok(());
         }
         println!("Cannot connect to antnet to create scratchpad...using local counter");
         self.counter_state = CounterState::LocalWithKey(key);
         Ok(())
+    }
+
+    pub fn increment(&mut self) {
+        self.counter.increment();
+        if self.get_counter_state() != "Connected" {
+            self.disconnected_count += 1;
+        }
+    }
+
+    pub fn reset(&mut self) {
+        self.counter.reset();
+        self.disconnected_count = 0;
     }
 
     pub fn get_counter_state(&self) -> &str {
@@ -194,7 +205,7 @@ impl CounterApp {
         }
     }
 
-    // try and conneect to existing scratchpad
+    // try and connect to existing scratchpad
     pub async fn connect(&mut self) -> Result<()> {
         let Some(key) = self.get_key() else {
             match self.counter_state {
@@ -217,19 +228,16 @@ impl CounterApp {
             self.counter_state = CounterState::Local;
             return Ok(());
         };
-        // if it hasn't already connected add the local count to the downloaded count
-        if !self.has_already_connected {
-            let count_to_add = self.counter.count;
-            self.counter = bincode::deserialize(&scratchpad.decrypt_data(&key)?)?;
-            self.counter.count += count_to_add;
-        }
+        self.counter = bincode::deserialize(&scratchpad.decrypt_data(&key)?)?;
+        self.counter.count += self.disconnected_count;
         self.counter_state = CounterState::Connected {
             client,
             scratchpad,
             key: key.clone(),
         };
-        self.has_already_connected = true;
-        // sync the new counter value by uploading an downloading
+        // reset disconnected count
+        self.disconnected_count = 0;
+        // sync the new counter value by uploading and downloading
         self.upload().await?;
         self.download().await?;
         Ok(())
@@ -293,10 +301,10 @@ impl CounterApp {
         } = &mut self.counter_state
         else {
             println!("Not connected to antnet");
-            self.counter_state = match self.get_key() {
-                Some(key) => CounterState::LocalWithKey(key.clone()),
-                None => CounterState::Local,
-            };
+            // self.counter_state = match self.get_key() {
+            //     Some(key) => CounterState::LocalWithKey(key.clone()),
+            //     None => CounterState::Local,
+            // };
             return Ok(());
         };
         let addr = scratchpad.address();
@@ -310,7 +318,7 @@ impl CounterApp {
         Ok(())
     }
 
-    // this interpets any error as inditive of not being connected hence false returned iseteaf of result
+    // this interprets any error as inditive of not being connected hence false returned iseteaf of result
     // changes coutner state from connected to LocalWithKey if fails
     pub async fn is_connected(&mut self) -> bool {
         let mut connected = false;
@@ -332,16 +340,6 @@ impl CounterApp {
         }
         connected
     }
-
-    //     if let Some(connected_scratchpad) = &self.connected_scratchpad {
-    //         connected = connected_scratchpad
-    //             .client
-    //             .scratchpad_check_existance(&connected_scratchpad.scratchpad.address())
-    //             .await
-    //             .unwrap_or(false)
-    //     }
-    //     connected
-    // }
 }
 
 fn get_start_of_next_week() -> Result<Zoned, jiff::Error> {

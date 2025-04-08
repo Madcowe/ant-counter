@@ -76,7 +76,7 @@ async fn run() -> Result<()> {
             }
             match input {
                 "i" => {
-                    counter_app.counter.increment();
+                    counter_app.increment();
                     println!("{:?}", counter_app.counter);
                     if counter_app.is_connected().await {
                         counter_app.upload().await?;
