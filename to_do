@@ -1,12 +1,8 @@
 // To do
-- Need to try to reconnect when not connected
-    - How to deal with locals if it can the connect?
-    - Need to count from disconnection in case mutiple isntancies and one disconnected
-- Test how network dropping out effect it.
+- Decide on any other state needed and implement data/methods for
 - Issue sometimes quiting is dealy due to a restart happening??
 - Sort out custom error handling
 - Nice ratatui front end
-- Decide on any other state needed and implement data/methods for
 - Modify to run on live network
 - Deploy to live network
 - Consider possbilities for android...try compliling in termex

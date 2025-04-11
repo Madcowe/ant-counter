@@ -72,7 +72,6 @@ async fn run() -> Result<()> {
             // if connected get counter from antnet
             if counter_app.get_counter_state() == "Connected" {
                 counter_app.download().await?;
-                println!("Downloaded before dealing with input")
             }
             match input {
                 "i" => {
@@ -85,7 +84,7 @@ async fn run() -> Result<()> {
                     }
                 }
                 "r" => {
-                    counter_app.counter.reset();
+                    counter_app.reset();
                     println!("{:?}", counter_app.counter);
                     if counter_app.is_connected().await {
                         counter_app.upload().await?;

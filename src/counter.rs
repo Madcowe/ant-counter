@@ -9,6 +9,36 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
+pub struct LastSixValues {
+    values: Vec<usize>,
+}
+
+impl LastSixValues {
+    pub fn new() -> LastSixValues {
+        LastSixValues { values: Vec::new() }
+    }
+
+    pub fn add(&mut self, value: usize) {
+        if self.values.len() >= 6 {
+            self.values.remove(0); // could use VecDeque if performance were an issue
+        }
+        self.values.push(value);
+    }
+
+    pub fn get_last_value(&self) -> usize {
+        if self.values.len() > 0 {
+            return self.values[self.values.len() - 1];
+        } else {
+            0
+        }
+    }
+
+    pub fn get_mean(&self) -> f64 {
+        let total = self.values.iter().sum::<usize>() as f64;
+        total / self.values.len() as f64
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
 pub struct Counter {
     pub count: usize,
@@ -213,7 +243,7 @@ impl CounterApp {
                     println!("No key is loaded");
                     return Ok(());
                 }
-                _ => return Ok(()), // if they was never a key it just contuues to run locally
+                _ => return Ok(()), // if they was never a key it just continues to run locally
             }
         };
         let key = key.clone();
@@ -237,7 +267,8 @@ impl CounterApp {
         };
         // reset disconnected count
         self.disconnected_count = 0;
-        // sync the new counter value by uploading and downloading
+        // sync the new counter value by uploading and downloading,
+        // if just connecting from intilising to existing scratchpad this is uneccesary and make extra version of scratchpad
         self.upload().await?;
         self.download().await?;
         Ok(())
@@ -360,4 +391,40 @@ async fn get_funded_wallet(private_key: &str) -> Result<Wallet> {
     println!("Wallet address: {}", wallet.address());
     println!("Wallet ballance: {}", wallet.balance_of_tokens().await?);
     Ok(wallet)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mean_test() {
+        let mut last_six_values = LastSixValues::new();
+        assert!(last_six_values.get_mean().is_nan());
+        last_six_values.add(3);
+        assert_eq!(last_six_values.get_mean(), 3.0);
+        last_six_values.add(7);
+        assert_eq!(last_six_values.get_mean(), 5.0);
+        last_six_values.add(5);
+        last_six_values.add(5);
+        last_six_values.add(5);
+        last_six_values.add(5);
+        assert_eq!(last_six_values.get_mean(), 5.0);
+        last_six_values.add(33);
+        assert_eq!(last_six_values.get_mean(), 10.0);
+    }
+
+    #[test]
+    fn last_value_test() {
+        let mut last_six_values = LastSixValues::new();
+        assert_eq!(last_six_values.get_last_value(), 0);
+        last_six_values.add(3);
+        assert_eq!(last_six_values.get_last_value(), 3);
+        last_six_values.add(7);
+        assert_eq!(last_six_values.get_last_value(), 7);
+        for _ in 1..6 {
+            last_six_values.add(5);
+        }
+        assert_eq!(last_six_values.get_last_value(), 5);
+    }
 }
