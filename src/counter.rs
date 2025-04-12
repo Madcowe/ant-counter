@@ -5,10 +5,12 @@ use autonomi::{Client, Network, Scratchpad, SecretKey, Wallet};
 use eyre::Result;
 use jiff::{ToSpan, Zoned};
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
 pub struct LastSixValues {
     values: Vec<usize>,
 }
@@ -43,9 +45,22 @@ impl LastSixValues {
 pub struct Counter {
     pub count: usize,
     pub max: usize,
-    pub previous_count: usize,
-    pub rolling_total: usize, // to calcualte rolling mean from
+    pub last_six_values: LastSixValues,
     pub reset_zoned_date_time: Zoned,
+}
+
+impl fmt::Display for Counter {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "Remaining: {} of {}, last weeks total: {}, rolling mean: {}, next reset: {}",
+            self.number_remaining(),
+            self.max,
+            self.last_six_values.get_last_value(),
+            self.last_six_values.get_mean(),
+            self.reset_zoned_date_time,
+        )
+    }
 }
 
 impl Counter {
@@ -53,9 +68,8 @@ impl Counter {
         Ok(Counter {
             count: 0,
             max: 0,
-            previous_count: 0,
-            rolling_total: 0,
-            reset_zoned_date_time: get_start_of_next_week()?,
+            last_six_values: LastSixValues::new(),
+            reset_zoned_date_time: get_a_minute_from_now()?,
         })
     }
 
@@ -64,8 +78,7 @@ impl Counter {
     }
 
     pub fn reset(&mut self) {
-        self.previous_count = self.count;
-        self.rolling_total += self.count;
+        self.last_six_values.add(self.count);
         self.count = 0;
     }
 
@@ -76,7 +89,7 @@ impl Counter {
         let now = Zoned::now();
         if now > self.reset_zoned_date_time {
             self.reset();
-            self.reset_zoned_date_time = get_start_of_next_week()?;
+            self.reset_zoned_date_time = get_a_minute_from_now()?;
             // self.reset_zoned_date_time = get_a_minute_from_now()?;
             reset = true;
             println!("Reseting as in new period")
@@ -86,6 +99,10 @@ impl Counter {
 
     pub fn increment(&mut self) {
         self.count += 1;
+    }
+
+    pub fn number_remaining(&self) -> isize {
+        self.max as isize - self.count as isize
     }
 }
 
@@ -370,6 +387,16 @@ impl CounterApp {
             _ => (),
         }
         connected
+    }
+
+    pub async fn sync_to_antnet(&mut self) -> Result<()> {
+        println!("{}", self.counter);
+        if self.is_connected().await {
+            self.upload().await?;
+            self.download().await?; // so local scratchpad synced
+            self.print_scratchpad()?;
+        }
+        Ok(())
     }
 }
 

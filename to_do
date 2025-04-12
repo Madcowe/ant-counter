@@ -1,11 +1,10 @@
 // To do
-- Decide on any other state needed and implement data/methods for
-- Issue sometimes quiting is dealy due to a restart happening??
+- Issue sometimes quiting is delayed due to a restart happening??
 - Sort out custom error handling
 - Nice ratatui front end
 - Modify to run on live network
 - Deploy to live network
-- Consider possbilities for android...try compliling in termex
+- Consider possbilities for android...try compliling in termux
 
 - look into how to secure key
 

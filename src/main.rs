@@ -46,7 +46,7 @@ async fn run() -> Result<()> {
     }
 
     if !(CounterState::Quitting == counter_app.counter_state) {
-        println!("{:?}", counter_app.counter);
+        println!("{}", counter_app.counter);
         if counter_app.is_connected().await {
             counter_app.download().await?;
             counter_app.print_scratchpad()?;
@@ -56,7 +56,7 @@ async fn run() -> Result<()> {
                 if counter_app.is_connected().await {
                     counter_app.upload().await?;
                 }
-                println!("{:?}", counter_app.counter);
+                println!("{}", counter_app.counter);
             }
             _ => (),
         }
@@ -65,7 +65,7 @@ async fn run() -> Result<()> {
         loop {
             println!("{}", counter_app.get_counter_state());
             // get input from user
-            println!("Enter i to increment counter, r to reset, d to disconnect (testing), c to connect (testing) or q to quit:");
+            println!("Enter (i) to increment counter, (r) to reset, (m) to set max, (d) to disconnect (testing), c to connect (testing) or q to quit:");
             let mut input = String::new();
             io::stdin().read_line(&mut input)?;
             let input = input.trim();
@@ -76,25 +76,29 @@ async fn run() -> Result<()> {
             match input {
                 "i" => {
                     counter_app.increment();
-                    println!("{:?}", counter_app.counter);
-                    if counter_app.is_connected().await {
-                        counter_app.upload().await?;
-                        counter_app.download().await?; // so local scratchpad synced
-                        counter_app.print_scratchpad()?;
-                    }
+                    counter_app.sync_to_antnet().await?;
                 }
                 "r" => {
                     counter_app.reset();
-                    println!("{:?}", counter_app.counter);
-                    if counter_app.is_connected().await {
-                        counter_app.upload().await?;
-                        counter_app.download().await?; // so local scratchpad synced
-                        counter_app.print_scratchpad()?;
-                    }
+                    counter_app.sync_to_antnet().await?;
+                }
+                "m" => {
+                    println!("Enter the max for a period: ");
+                    let mut input = String::new();
+                    io::stdin().read_line(&mut input)?;
+                    let input: usize = match input.trim().parse() {
+                        Ok(input) => input,
+                        Err(_) => {
+                            println!("Max must be a positive whole number");
+                            continue;
+                        }
+                    };
+                    counter_app.counter.set_max(input);
+                    counter_app.sync_to_antnet().await?;
                 }
                 "d" => {
                     counter_app.disconnect();
-                    println!("{:?}", counter_app.counter);
+                    println!("{}", counter_app.counter);
                 }
                 "c" => {
                     // if not connected attempt to connect
@@ -118,12 +122,7 @@ async fn run() -> Result<()> {
             // reset counter if needed
             match counter_app.counter.reset_if_next_period()? {
                 true => {
-                    println!("{:?}", counter_app.counter);
-                    if counter_app.is_connected().await {
-                        counter_app.upload().await?;
-                        counter_app.download().await?; // so local scratchpad synced
-                        counter_app.print_scratchpad()?;
-                    }
+                    counter_app.sync_to_antnet().await?;
                 }
                 _ => (),
             }
