@@ -1,12 +1,14 @@
 // To do
+- Modify to run on live network
+    - Add enum for local/antnet
 - Issue sometimes quiting is delayed due to a restart happening??
 - Sort out custom error handling
 - Nice ratatui front end
-- Modify to run on live network
 - Deploy to live network
 - Consider possbilities for android...try compliling in termux
 
 - look into how to secure key
+    - could look at how ant-cli does it
 
 !!!! Note below was due to not updatding the autonomi dependency to the same version as the cloned repo !!! doh!!!!
 Note scratch pad storage stoped working with errors like

@@ -1,6 +1,5 @@
 use counter::{CounterApp, CounterState};
 use eyre::Result;
-use std::fs;
 use std::io::{self};
 use std::path::Path;
 
@@ -13,7 +12,7 @@ async fn main() -> Result<()> {
 }
 
 async fn run() -> Result<()> {
-    let path = Path::new("key");
+    let path = Path::new(""); // diretory path, file name givn in counter
     let private_key = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
     // create app
     let mut counter_app = CounterApp::new()?;
@@ -26,11 +25,15 @@ async fn run() -> Result<()> {
         let input = input.trim();
         match input {
             "u" => {
-                if let Ok(hex_key) = fs::read_to_string(path) {
-                    counter_app.set_key_from_hex(&hex_key)?;
+                counter_app.set_path(&path);
+                if let Ok(_) = counter_app.set_key_from_file() {
                     counter_app.connect().await?;
                 } else {
-                    println!("Failed to load key file at path: {path:?}");
+                    println!(
+                        "Failed to load key from path: {:?}",
+                        &counter_app.key_file_path
+                    );
+                    continue;
                 }
             }
             "c" => {

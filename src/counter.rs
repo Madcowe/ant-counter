@@ -6,9 +6,10 @@ use eyre::Result;
 use jiff::{ToSpan, Zoned};
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use std::fs;
 use std::fs::File;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
 pub struct LastSixValues {
@@ -106,6 +107,12 @@ impl Counter {
     }
 }
 
+pub enum ConnectionType {
+    NotSet,
+    Local,
+    Antnet,
+}
+
 pub enum CounterState {
     Initiating,
     Local,
@@ -133,10 +140,12 @@ impl PartialEq for CounterState {
 }
 
 pub struct CounterApp {
+    pub connection_type: ConnectionType,
     pub counter_state: CounterState,
     pub counter: Counter,
     pub content_type: u64,
     pub disconnected_count: usize, // counts increment during disconnected periods
+    pub key_file_path: PathBuf,
 }
 
 // #[derive(Debug, thiserror::Error)]
@@ -153,19 +162,27 @@ pub struct CounterApp {
 impl CounterApp {
     pub fn new() -> Result<CounterApp, jiff::Error> {
         Ok(CounterApp {
+            connection_type: ConnectionType::NotSet,
             counter_state: CounterState::Initiating,
             counter: Counter::new()?,
             content_type: 99,
             disconnected_count: 0,
+            key_file_path: PathBuf::new(),
         })
+    }
+
+    pub fn set_path(&mut self, path: &Path) {
+        self.key_file_path = [path, Path::new("key")].iter().collect();
+        println!("Key file path set as : {:?}", self.key_file_path);
     }
 
     pub async fn create(&mut self, path: &Path, private_key: &str) -> Result<()> {
         // create new key and save to file
+        self.set_path(&path);
         let key = autonomi::SecretKey::random();
         let key_hex = key.to_hex();
         println!("New key: {}", key_hex);
-        let mut file = File::create(&path)?;
+        let mut file = File::create(&self.key_file_path)?;
         file.write_all(key_hex.as_bytes())?;
         // create local counter
         self.counter = Counter::new()?;
@@ -203,6 +220,21 @@ impl CounterApp {
         Ok(())
     }
 
+    pub fn set_key_from_hex(&mut self, hex_key: &str) -> Result<()> {
+        self.counter_state = CounterState::LocalWithKey(SecretKey::from_hex(&hex_key)?);
+        if let Some(key) = self.get_key() {
+            println!("Key loaded: {}", key.to_hex());
+        }
+        Ok(())
+    }
+
+    pub fn set_key_from_file(&mut self) -> Result<()> {
+        if let Ok(hex_key) = fs::read_to_string(&self.key_file_path) {
+            self.set_key_from_hex(&hex_key)?;
+        }
+        Ok(())
+    }
+
     pub fn increment(&mut self) {
         self.counter.increment();
         if self.get_counter_state() != "Connected" {
@@ -232,14 +264,6 @@ impl CounterApp {
                 scratchpad.counter(),
                 self.counter
             );
-        }
-        Ok(())
-    }
-
-    pub fn set_key_from_hex(&mut self, hex_key: &str) -> Result<()> {
-        self.counter_state = CounterState::LocalWithKey(SecretKey::from_hex(&hex_key)?);
-        if let Some(key) = self.get_key() {
-            println!("Key loaded: {}", key.to_hex());
         }
         Ok(())
     }
