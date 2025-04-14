@@ -1,4 +1,4 @@
-use counter::{CounterApp, CounterState};
+use counter::{ConnectionType, CounterApp, CounterState};
 use eyre::Result;
 use std::io::{self};
 use std::path::Path;
@@ -16,8 +16,34 @@ async fn run() -> Result<()> {
     let private_key = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
     // create app
     let mut counter_app = CounterApp::new()?;
-    // get input from user
+    // get what type of connection to use
+    loop {
+        println!("Enter (a) to connect to antnet or (l) for a local network or (q) to quit:");
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+        let input = input.trim();
+        match input {
+            "a" => {
+                counter_app.connection_type = ConnectionType::Antnet;
+                break;
+            }
+            "l" => {
+                counter_app.connection_type = ConnectionType::Local;
+                break;
+            }
+            "q" => {
+                counter_app.counter_state = CounterState::Quitting;
+                break;
+            }
+            _ => {
+                println!("Unrecognised command");
+                continue;
+            }
+        }
+    }
+    counter_app.set_path(&path);
     println!("{}", counter_app.get_counter_state());
+    // let use choose to use existing coutner from key file or create a new one
     while let CounterState::Initiating = counter_app.counter_state {
         println!("Enter (u) to use existing counter, (c) to create a new one or (q) to quit:");
         let mut input = String::new();
@@ -25,7 +51,6 @@ async fn run() -> Result<()> {
         let input = input.trim();
         match input {
             "u" => {
-                counter_app.set_path(&path);
                 if let Ok(_) = counter_app.set_key_from_file() {
                     counter_app.connect().await?;
                 } else {
@@ -37,7 +62,7 @@ async fn run() -> Result<()> {
                 }
             }
             "c" => {
-                counter_app.create(&path, &private_key).await?;
+                counter_app.create(&private_key).await?;
             }
             "q" => counter_app.counter_state = CounterState::Quitting,
             _ => {

@@ -108,9 +108,17 @@ impl Counter {
 }
 
 pub enum ConnectionType {
-    NotSet,
     Local,
     Antnet,
+}
+
+impl ConnectionType {
+    pub fn get_key_file_name(&self) -> &Path {
+        match self {
+            ConnectionType::Local => Path::new("local_key"),
+            ConnectionType::Antnet => Path::new("key"),
+        }
+    }
 }
 
 pub enum CounterState {
@@ -162,7 +170,7 @@ pub struct CounterApp {
 impl CounterApp {
     pub fn new() -> Result<CounterApp, jiff::Error> {
         Ok(CounterApp {
-            connection_type: ConnectionType::NotSet,
+            connection_type: ConnectionType::Antnet,
             counter_state: CounterState::Initiating,
             counter: Counter::new()?,
             content_type: 99,
@@ -172,13 +180,14 @@ impl CounterApp {
     }
 
     pub fn set_path(&mut self, path: &Path) {
-        self.key_file_path = [path, Path::new("key")].iter().collect();
-        println!("Key file path set as : {:?}", self.key_file_path);
+        self.key_file_path = [path, self.connection_type.get_key_file_name()]
+            .iter()
+            .collect();
+        println!("Key file path set as: {:?}", self.key_file_path);
     }
 
-    pub async fn create(&mut self, path: &Path, private_key: &str) -> Result<()> {
+    pub async fn create(&mut self, private_key: &str) -> Result<()> {
         // create new key and save to file
-        self.set_path(&path);
         let key = autonomi::SecretKey::random();
         let key_hex = key.to_hex();
         println!("New key: {}", key_hex);
