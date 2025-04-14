@@ -9,6 +9,7 @@ use std::fmt;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
+use std::io::{self};
 use std::path::{Path, PathBuf};
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
@@ -205,23 +206,42 @@ impl CounterApp {
             Ok(wallet) => wallet,
         };
         // attempt to connect safenet and create new scratch pad
-        if let Ok(client) = Client::init_local().await {
+        if let Ok(client) = match self.connection_type {
+            ConnectionType::Local => Client::init_local().await,
+            ConnectionType::Antnet => Client::init().await,
+        } {
             // seralize counter and create scratchpad with it
             let counter_seralized = bincode::serialize(&self.counter)?;
             let content = Bytes::from(counter_seralized);
-            let payment_option = PaymentOption::from(wallet);
-            let (cost, addr) = client
-                .scratchpad_create(&key, self.content_type, &content, payment_option)
-                .await?;
-            println!("Scratchpad created, cost: {cost} addr {addr}");
-            // wait for scratchpad to be replicated
-            tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
-            let scratchpad = client.scratchpad_get(&addr).await?;
-            self.counter_state = CounterState::Connected {
-                client,
-                scratchpad,
-                key,
-            };
+            // estimate cost
+            let public_key = key.public_key();
+            let cost = client.scratchpad_cost(&public_key).await?;
+            println!("Type yes to confirm create scratchpad at cost: {cost}:");
+
+            let mut input = String::new();
+            io::stdin().read_line(&mut input)?;
+            let input = input.trim();
+            match input {
+                "yes" => {
+                    let payment_option = PaymentOption::from(wallet);
+                    let (cost, addr) = client
+                        .scratchpad_create(&key, self.content_type, &content, payment_option)
+                        .await?;
+                    println!("Scratchpad created, cost: {cost} addr {addr}");
+                    // wait for scratchpad to be replicated
+                    tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+                    let scratchpad = client.scratchpad_get(&addr).await?;
+                    self.counter_state = CounterState::Connected {
+                        client,
+                        scratchpad,
+                        key,
+                    };
+                }
+                _ => {
+                    println!("Scratchpad not created, using local counter");
+                    self.counter_state = CounterState::LocalWithKey(key);
+                }
+            }
             return Ok(());
         }
         println!("Cannot connect to antnet to create scratchpad...using local counter");
@@ -298,7 +318,10 @@ impl CounterApp {
         };
         let key = key.clone();
         let public_key = key.public_key();
-        let Ok(client) = Client::init_local().await else {
+        let Ok(client) = (match self.connection_type {
+            ConnectionType::Local => Client::init_local().await,
+            ConnectionType::Antnet => Client::init().await,
+        }) else {
             println!("Can't connect to antnet...using local counter");
             self.counter_state = CounterState::LocalWithKey(key);
             return Ok(());

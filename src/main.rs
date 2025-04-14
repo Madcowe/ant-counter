@@ -1,7 +1,10 @@
+use autonomi::InitialPeersConfig;
 use counter::{ConnectionType, CounterApp, CounterState};
 use eyre::Result;
+use std::any::Any;
 use std::io::{self};
 use std::path::Path;
+use std::str::FromStr;
 
 mod counter;
 
@@ -13,8 +16,7 @@ async fn main() -> Result<()> {
 
 async fn run() -> Result<()> {
     let path = Path::new(""); // diretory path, file name givn in counter
-    let private_key = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
-    // create app
+                              // create app
     let mut counter_app = CounterApp::new()?;
     // get what type of connection to use
     loop {
@@ -62,7 +64,17 @@ async fn run() -> Result<()> {
                 }
             }
             "c" => {
-                counter_app.create(&private_key).await?;
+                if let ConnectionType::Antnet = counter_app.connection_type {
+                    println!("Please enter private key:");
+                    let mut input = String::new();
+                    io::stdin().read_line(&mut input)?;
+                    let private_key = input.trim();
+                    counter_app.create(&private_key).await?
+                } else {
+                    let private_key =
+                        "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+                    counter_app.create(&private_key).await?;
+                }
             }
             "q" => counter_app.counter_state = CounterState::Quitting,
             _ => {
