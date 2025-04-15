@@ -1,7 +1,6 @@
 // To do
-- Modify to run on live network
-    -  Modify get funded wallet so method that connect to ArbitrumOne if ConnectionType:Antnet
-    -  Remember to backup key when created on livenet
+- Test on live network
+- Add time out for connection attempt
 - Issue sometimes quiting is delayed due to a restart happening??
 - Sort out custom error handling
 - Nice ratatui front end

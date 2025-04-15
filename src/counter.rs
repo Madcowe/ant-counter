@@ -71,7 +71,7 @@ impl Counter {
             count: 0,
             max: 0,
             last_six_values: LastSixValues::new(),
-            reset_zoned_date_time: get_a_minute_from_now()?,
+            reset_zoned_date_time: get_n_minutes_from_now()?,
         })
     }
 
@@ -84,6 +84,10 @@ impl Counter {
         self.count = 0;
     }
 
+    pub fn reset_stats(&mut self) {
+        self.last_six_values = LastSixValues::new();
+    }
+
     // checks if time is past rest_zoned_data_time and if so resets the counter
     // and updates reset_zoned_date_time to next period start
     pub fn reset_if_next_period(&mut self) -> Result<bool, jiff::Error> {
@@ -91,7 +95,7 @@ impl Counter {
         let now = Zoned::now();
         if now > self.reset_zoned_date_time {
             self.reset();
-            self.reset_zoned_date_time = get_a_minute_from_now()?;
+            self.reset_zoned_date_time = get_n_minutes_from_now()?;
             // self.reset_zoned_date_time = get_a_minute_from_now()?;
             reset = true;
             println!("Reseting as in new period")
@@ -197,7 +201,7 @@ impl CounterApp {
         // create local counter
         self.counter = Counter::new()?;
         // attempt to creat wallet
-        let wallet = match get_funded_wallet(&private_key).await {
+        let wallet = match self.get_funded_wallet(&private_key).await {
             Err(_) => {
                 println!("Cannot get funds to create wallet.");
                 self.counter_state = CounterState::LocalWithKey(key);
@@ -216,8 +220,7 @@ impl CounterApp {
             // estimate cost
             let public_key = key.public_key();
             let cost = client.scratchpad_cost(&public_key).await?;
-            println!("Type yes to confirm create scratchpad at cost: {cost}:");
-
+            println!("Type yes to confirm creation of scratchpad at cost: {cost}:");
             let mut input = String::new();
             io::stdin().read_line(&mut input)?;
             let input = input.trim();
@@ -391,7 +394,7 @@ impl CounterApp {
             .await?;
         while counter != self.get_network_counter().await? {
             tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-            println!("Syncing to ant network...");
+            println!("Syncing to antnet...");
         }
         println!("Synced");
         Ok(())
@@ -454,6 +457,18 @@ impl CounterApp {
         }
         Ok(())
     }
+
+    async fn get_funded_wallet(&mut self, private_key: &str) -> Result<Wallet> {
+        let local = match self.connection_type {
+            ConnectionType::Antnet => false,
+            ConnectionType::Local => true,
+        };
+        let network = Network::new(local)?;
+        let wallet = Wallet::new_from_private_key(network, private_key)?;
+        println!("Wallet address: {}", wallet.address());
+        println!("Wallet ballance: {}", wallet.balance_of_tokens().await?);
+        Ok(wallet)
+    }
 }
 
 fn get_start_of_next_week() -> Result<Zoned, jiff::Error> {
@@ -463,17 +478,9 @@ fn get_start_of_next_week() -> Result<Zoned, jiff::Error> {
 }
 
 // alternate period for testing
-fn get_a_minute_from_now() -> Result<Zoned, jiff::Error> {
+fn get_n_minutes_from_now() -> Result<Zoned, jiff::Error> {
     let now = Zoned::now();
-    Ok(&now + 1.minute())
-}
-
-async fn get_funded_wallet(private_key: &str) -> Result<Wallet> {
-    let network = Network::new(true)?;
-    let wallet = Wallet::new_from_private_key(network, private_key)?;
-    println!("Wallet address: {}", wallet.address());
-    println!("Wallet ballance: {}", wallet.balance_of_tokens().await?);
-    Ok(wallet)
+    Ok(&now + 10.minute())
 }
 
 #[cfg(test)]

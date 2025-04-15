@@ -105,7 +105,7 @@ async fn run() -> Result<()> {
         loop {
             println!("{}", counter_app.get_counter_state());
             // get input from user
-            println!("Enter (i) to increment counter, (r) to reset, (m) to set max, (d) to disconnect (testing), c to connect (testing) or q to quit:");
+            println!("Enter (i) to increment counter, (r) to reset, (rs) to reset statistics, (m) to set max, (d) to disconnect (testing), c to connect (testing) or q to quit:");
             let mut input = String::new();
             io::stdin().read_line(&mut input)?;
             let input = input.trim();
@@ -120,6 +120,10 @@ async fn run() -> Result<()> {
                 }
                 "r" => {
                     counter_app.reset();
+                    counter_app.sync_to_antnet().await?;
+                }
+                "rs" => {
+                    counter_app.counter.reset_stats();
                     counter_app.sync_to_antnet().await?;
                 }
                 "m" => {
