@@ -1,10 +1,7 @@
-use autonomi::InitialPeersConfig;
 use counter::{ConnectionType, CounterApp, CounterState};
 use eyre::Result;
-use std::any::Any;
 use std::io::{self};
 use std::path::Path;
-use std::str::FromStr;
 
 mod counter;
 

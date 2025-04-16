@@ -1,11 +1,11 @@
 // To do
 - Test on live network
-- Add time out for connection attempt
+- Consider possbilities for android...try compliling in termux
 - Issue sometimes quiting is delayed due to a restart happening??
+- Seems to have constant delay in quiting on live network
 - Sort out custom error handling
 - Nice ratatui front end
 - Deploy to live network
-- Consider possbilities for android...try compliling in termux
 
 - look into how to secure key
     - could look at how ant-cli does it

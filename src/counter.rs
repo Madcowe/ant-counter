@@ -71,7 +71,7 @@ impl Counter {
             count: 0,
             max: 0,
             last_six_values: LastSixValues::new(),
-            reset_zoned_date_time: get_n_minutes_from_now()?,
+            reset_zoned_date_time: get_start_of_next_week()?,
         })
     }
 
@@ -95,7 +95,7 @@ impl Counter {
         let now = Zoned::now();
         if now > self.reset_zoned_date_time {
             self.reset();
-            self.reset_zoned_date_time = get_n_minutes_from_now()?;
+            self.reset_zoned_date_time = get_start_of_next_week()?;
             // self.reset_zoned_date_time = get_a_minute_from_now()?;
             reset = true;
             println!("Reseting as in new period")
@@ -392,11 +392,16 @@ impl CounterApp {
         client
             .scratchpad_update(&key, self.content_type, &content)
             .await?;
-        while counter != self.get_network_counter().await? {
-            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+        for _ in (0..300).step_by(5) {
+            tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
             println!("Syncing to antnet...");
+            if counter == self.get_network_counter().await? {
+                println!("Synced");
+                return Ok(());
+            }
         }
-        println!("Synced");
+        println!("Could not sync to antnet, reverting to local counter");
+        self.counter_state = CounterState::LocalWithKey(key.clone());
         Ok(())
     }
 
@@ -408,10 +413,6 @@ impl CounterApp {
         } = &mut self.counter_state
         else {
             println!("Not connected to antnet");
-            // self.counter_state = match self.get_key() {
-            //     Some(key) => CounterState::LocalWithKey(key.clone()),
-            //     None => CounterState::Local,
-            // };
             return Ok(());
         };
         let addr = scratchpad.address();
