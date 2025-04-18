@@ -149,30 +149,28 @@ async fn run() -> Result<()> {
                         counter_app.print_scratchpad()?;
                     }
                 }
-                "q" => break,
+                "q" => {
+                    counter_app.counter_state = CounterState::Quitting;
+                    break;
+                }
                 _ => {
                     println!("Unrecognised command");
                     continue;
                 }
             }
-            // // if not connected attempt to connect
-            // if counter_app.is_connected().await == false {
-            //     println!("Trying to connect to antnet...");
-            //     counter_app.connect().await?;
-            // }
-            // reset counter if needed
-            match counter_app.counter.reset_if_next_period()? {
-                true => {
-                    counter_app.sync_to_antnet().await?;
+            if !(CounterState::Quitting == counter_app.counter_state) {
+                match counter_app.counter.reset_if_next_period()? {
+                    true => {
+                        counter_app.sync_to_antnet().await?;
+                    }
+                    _ => (),
                 }
-                _ => (),
             }
         }
     }
-    // download and print results
-    println!("Final state:");
-    println!("{}", counter_app.get_counter_state());
-    if counter_app.is_connected().await {
+    // println!("Final state:");
+    // println!("{}", counter_app.get_counter_state());
+    if let CounterState::Connected { .. } = counter_app.counter_state {
         counter_app.download().await?;
         counter_app.print_scratchpad()?;
     }

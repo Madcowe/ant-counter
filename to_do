@@ -1,7 +1,13 @@
 // To do
-- Test on live network
-- Consider possbilities for android...try compliling in termux
+- Issue, andrid version kills battery and makes phoen really hot
+    - Try to minimised ant network calls in code
+        - Specfically the bit in upload were it keeps checking if the updat has happened.
+        - Maybe just try twice after 30 seconds each and then revert to local
+        - Stop connect syncing if initilization
+        - Check for other ares this cound be done.
 - Issue sometimes quiting is delayed due to a restart happening??
+    - Main loop would check for restart after quiting invoked should be fixed not but haven't tested.
+- Sort out quit as if statment doesn't work to return if connected
 - Seems to have constant delay in quiting on live network
 - Sort out custom error handling
 - Nice ratatui front end

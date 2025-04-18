@@ -157,7 +157,6 @@ pub struct CounterApp {
     pub counter_state: CounterState,
     pub counter: Counter,
     pub content_type: u64,
-    pub disconnected_count: usize, // counts increment during disconnected periods
     pub key_file_path: PathBuf,
 }
 
@@ -179,7 +178,6 @@ impl CounterApp {
             counter_state: CounterState::Initiating,
             counter: Counter::new()?,
             content_type: 99,
-            disconnected_count: 0,
             key_file_path: PathBuf::new(),
         })
     }
@@ -269,14 +267,10 @@ impl CounterApp {
 
     pub fn increment(&mut self) {
         self.counter.increment();
-        if self.get_counter_state() != "Connected" {
-            self.disconnected_count += 1;
-        }
     }
 
     pub fn reset(&mut self) {
         self.counter.reset();
-        self.disconnected_count = 0;
     }
 
     pub fn get_counter_state(&self) -> &str {
@@ -335,14 +329,11 @@ impl CounterApp {
             return Ok(());
         };
         self.counter = bincode::deserialize(&scratchpad.decrypt_data(&key)?)?;
-        self.counter.count += self.disconnected_count;
         self.counter_state = CounterState::Connected {
             client,
             scratchpad,
             key: key.clone(),
         };
-        // reset disconnected count
-        self.disconnected_count = 0;
         // sync the new counter value by uploading and downloading,
         // if just connecting from intilising to existing scratchpad this is uneccesary and make extra version of scratchpad
         self.upload().await?;
@@ -388,13 +379,13 @@ impl CounterApp {
             println!("Not connected");
             return Ok(());
         };
-        println!("Syncing to antnet...");
+        println!("Uploading to antnet...");
         client
             .scratchpad_update(&key, self.content_type, &content)
             .await?;
-        for _ in (0..300).step_by(5) {
-            tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-            println!("Syncing to antnet...");
+        for i in (1..3).step_by(1) {
+            tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
+            println!("Checking antnet count matches attempt {i}...");
             if counter == self.get_network_counter().await? {
                 println!("Synced");
                 return Ok(());
