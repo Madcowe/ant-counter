@@ -303,7 +303,7 @@ impl CounterApp {
     }
 
     // try and connect to existing scratchpad
-    pub async fn connect(&mut self) -> Result<()> {
+    pub async fn connect(&mut self, first_time: bool) -> Result<()> {
         let Some(key) = self.get_key() else {
             match self.counter_state {
                 CounterState::Initiating => {
@@ -335,9 +335,10 @@ impl CounterApp {
             key: key.clone(),
         };
         // sync the new counter value by uploading and downloading,
-        // if just connecting from intilising to existing scratchpad this is uneccesary and make extra version of scratchpad
-        self.upload().await?;
-        self.download().await?;
+        if !first_time {
+            self.upload().await?;
+            self.download().await?;
+        }
         Ok(())
     }
 

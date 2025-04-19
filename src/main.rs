@@ -51,7 +51,7 @@ async fn run() -> Result<()> {
         match input {
             "u" => {
                 if let Ok(_) = counter_app.set_key_from_file() {
-                    counter_app.connect().await?;
+                    counter_app.connect(true).await?;
                 } else {
                     println!(
                         "Failed to load key from path: {:?}",
@@ -143,9 +143,9 @@ async fn run() -> Result<()> {
                 }
                 "c" => {
                     // if not connected attempt to connect
-                    if counter_app.is_connected().await == false {
+                    if counter_app.get_counter_state() != "Connected" {
                         println!("Trying to connect to antnet...");
-                        counter_app.connect().await?;
+                        counter_app.connect(false).await?;
                         counter_app.print_scratchpad()?;
                     }
                 }
@@ -158,7 +158,7 @@ async fn run() -> Result<()> {
                     continue;
                 }
             }
-            if !(CounterState::Quitting == counter_app.counter_state) {
+            if !(counter_app.get_counter_state() == "Quitting") {
                 match counter_app.counter.reset_if_next_period()? {
                     true => {
                         counter_app.sync_to_antnet().await?;
@@ -168,11 +168,7 @@ async fn run() -> Result<()> {
             }
         }
     }
-    // println!("Final state:");
-    // println!("{}", counter_app.get_counter_state());
-    if let CounterState::Connected { .. } = counter_app.counter_state {
-        counter_app.download().await?;
-        counter_app.print_scratchpad()?;
-    }
+    println!("Final counter:");
+    println!("{}", counter_app.counter);
     Ok(())
 }
