@@ -80,7 +80,6 @@ impl Counter {
     }
 
     pub fn reset(&mut self) {
-        self.last_six_values.add(self.count);
         self.count = 0;
     }
 
@@ -95,6 +94,7 @@ impl Counter {
         let now = Zoned::now();
         if now > self.reset_zoned_date_time {
             self.reset();
+            self.last_six_values.add(self.count);
             self.reset_zoned_date_time = get_start_of_next_week()?;
             // self.reset_zoned_date_time = get_a_minute_from_now()?;
             reset = true;
